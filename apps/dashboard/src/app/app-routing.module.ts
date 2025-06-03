@@ -1,4 +1,5 @@
-import { Routes } from '@angular/router';
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
 import { inject } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { map } from 'rxjs/operators';
@@ -12,7 +13,7 @@ const adminGuard = () => {
     .pipe(map((isOwnerOrAdmin) => isOwnerOrAdmin || { path: '/tasks' }));
 };
 
-export const routes: Routes = [
+const routes: Routes = [
   { path: '', redirectTo: '/tasks', pathMatch: 'full' },
   {
     path: 'role-switcher',
@@ -53,3 +54,9 @@ export const routes: Routes = [
     canActivate: [adminGuard],
   },
 ];
+
+@NgModule({
+  imports: [RouterModule.forRoot(routes)],
+  exports: [RouterModule],
+})
+export class AppRoutingModule {}

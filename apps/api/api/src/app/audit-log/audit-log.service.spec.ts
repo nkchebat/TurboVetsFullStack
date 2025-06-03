@@ -1,23 +1,31 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AuditLog } from '@turbovets/data';
+import { AuditLog, AuditAction } from '@turbovets/data';
 import { AuditLogService } from './audit-log.service';
 
 describe('AuditLogService', () => {
   let service: AuditLogService;
   let auditLogRepository: Repository<AuditLog>;
+  let queryBuilder: any;
 
   const mockAuditLog: AuditLog = {
     id: 1,
     userId: 1,
-    action: 'CREATE',
+    action: 'CREATE' as AuditAction,
     taskId: 1,
     details: 'Test audit log',
     timestamp: new Date(),
   };
 
   beforeEach(async () => {
+    queryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([mockAuditLog]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuditLogService,
@@ -27,12 +35,7 @@ describe('AuditLogService', () => {
             create: jest.fn().mockReturnValue(mockAuditLog),
             save: jest.fn().mockResolvedValue(mockAuditLog),
             find: jest.fn().mockResolvedValue([mockAuditLog]),
-            createQueryBuilder: jest.fn(() => ({
-              where: jest.fn().mockReturnThis(),
-              orderBy: jest.fn().mockReturnThis(),
-              take: jest.fn().mockReturnThis(),
-              getMany: jest.fn().mockResolvedValue([mockAuditLog]),
-            })),
+            createQueryBuilder: jest.fn(() => queryBuilder),
           },
         },
       ],
@@ -50,14 +53,20 @@ describe('AuditLogService', () => {
 
   describe('Audit Log Creation', () => {
     test('CREATE LOG: Should create new audit log entry with user, action, and task details', async () => {
-      const result = await service.log(1, 'CREATE', 1, 'Test log');
+      const result = await service.log(
+        1,
+        'CREATE' as AuditAction,
+        1,
+        'Test log'
+      );
 
       expect(result).toEqual(mockAuditLog);
       expect(auditLogRepository.create).toHaveBeenCalledWith({
         userId: 1,
-        action: 'CREATE',
+        action: 'CREATE' as AuditAction,
         taskId: 1,
         details: 'Test log',
+        timestamp: expect.any(Date),
       });
     });
   });
@@ -68,17 +77,26 @@ describe('AuditLogService', () => {
 
       expect(result).toEqual([mockAuditLog]);
       expect(auditLogRepository.createQueryBuilder).toHaveBeenCalled();
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith(
+        'audit_log.timestamp',
+        'DESC'
+      );
+      expect(queryBuilder.take).toHaveBeenCalledWith(100);
     });
 
     test('GET USER LOGS: Should retrieve audit logs filtered by specific user actions', async () => {
       const result = await service.findAll(1);
 
       expect(result).toEqual([mockAuditLog]);
-      const queryBuilder = auditLogRepository.createQueryBuilder('audit_log');
       expect(queryBuilder.where).toHaveBeenCalledWith(
         'audit_log.userId = :userId',
         { userId: 1 }
       );
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith(
+        'audit_log.timestamp',
+        'DESC'
+      );
+      expect(queryBuilder.take).toHaveBeenCalledWith(100);
     });
   });
 

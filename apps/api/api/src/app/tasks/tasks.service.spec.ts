@@ -1,7 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Task, User, Organization } from '@turbovets/data';
+import {
+  Task,
+  User,
+  Organization,
+  UserRole,
+  TaskStatus,
+  AuditAction,
+} from '@turbovets/data';
 import { TasksService } from './tasks.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { NotFoundException } from '@nestjs/common';
@@ -16,7 +23,7 @@ describe('TasksService', () => {
     name: 'Test User',
     email: 'test@example.com',
     password: 'hashed_password',
-    role: 'Owner',
+    role: 'Owner' as UserRole,
     organization: { id: 1 } as Organization,
     tasks: [],
     createdAt: new Date(),
@@ -27,7 +34,7 @@ describe('TasksService', () => {
     id: 1,
     title: 'Test Task',
     description: 'Test Description',
-    status: 'todo',
+    status: 'todo' as TaskStatus,
     owner: mockUser,
     organization: mockUser.organization,
     createdAt: new Date(),
@@ -83,7 +90,7 @@ describe('TasksService', () => {
       });
       expect(auditLogService.log).toHaveBeenCalledWith(
         mockUser.id,
-        'CREATE',
+        'CREATE' as AuditAction,
         mockTask.id,
         'Task created'
       );
@@ -128,7 +135,7 @@ describe('TasksService', () => {
       expect(result).toEqual(mockTask);
       expect(auditLogService.log).toHaveBeenCalledWith(
         mockUser.id,
-        'UPDATE',
+        'UPDATE' as AuditAction,
         mockTask.id,
         'Task updated'
       );
@@ -150,7 +157,7 @@ describe('TasksService', () => {
       expect(taskRepository.remove).toHaveBeenCalledWith(mockTask);
       expect(auditLogService.log).toHaveBeenCalledWith(
         mockUser.id,
-        'DELETE',
+        'DELETE' as AuditAction,
         mockTask.id,
         'Task deleted'
       );

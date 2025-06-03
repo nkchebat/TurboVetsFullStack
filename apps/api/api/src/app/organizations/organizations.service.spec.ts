@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Organization, User } from '@turbovets/data';
+import { Organization, User, UserRole } from '@turbovets/data';
 import { OrganizationsService } from './organizations.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
@@ -25,7 +25,7 @@ describe('OrganizationsService', () => {
     name: 'Test User',
     email: 'test@example.com',
     password: 'hashed_password',
-    role: 'Owner',
+    role: 'Owner' as UserRole,
     organization: mockOrg,
     tasks: [],
     createdAt: new Date(),
@@ -69,12 +69,15 @@ describe('OrganizationsService', () => {
       expect(orgRepository.create).toHaveBeenCalledWith({
         ...createOrgDto,
         parentOrg: null,
+        childOrganizations: [],
+        users: [],
+        tasks: [],
       });
     });
 
     test('CREATE ORG ERROR: Should prevent non-owner users from creating sub-organizations', async () => {
       const createOrgDto = { name: 'Sub Org', parentOrgId: 2 };
-      const nonOwnerUser = { ...mockUser, role: 'Admin' };
+      const nonOwnerUser = { ...mockUser, role: 'Admin' as UserRole };
 
       await expect(service.create(createOrgDto, nonOwnerUser)).rejects.toThrow(
         BadRequestException
@@ -122,7 +125,7 @@ describe('OrganizationsService', () => {
     });
 
     test('UPDATE ORG ERROR: Should prevent non-owner users from updating organizations', async () => {
-      const nonOwnerUser = { ...mockUser, role: 'Admin' };
+      const nonOwnerUser = { ...mockUser, role: 'Admin' as UserRole };
 
       await expect(
         service.update(1, { name: 'Updated' }, nonOwnerUser)
@@ -140,7 +143,7 @@ describe('OrganizationsService', () => {
     test('DELETE ORG ERROR: Should prevent deletion of organizations with child organizations', async () => {
       const orgWithChildren = {
         ...mockOrg,
-        childOrganizations: [{ id: 2, name: 'Sub Org' }],
+        childOrganizations: [{ ...mockOrg, id: 2, name: 'Sub Org' }],
       };
       jest
         .spyOn(orgRepository, 'findOne')
