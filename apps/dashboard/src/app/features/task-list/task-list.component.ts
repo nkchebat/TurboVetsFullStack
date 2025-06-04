@@ -262,6 +262,7 @@ import { formatTaskStatus } from '../../shared/utils/status-formatter.util';
       <app-delete-confirmation-dialog
         [isOpen]="showDeleteDialog"
         [taskTitle]="taskToDelete?.title || ''"
+        [taskStatus]="taskToDelete?.status || 'TODO'"
         (confirm)="onConfirmDelete()"
         (cancel)="onCancelDelete()"
       ></app-delete-confirmation-dialog>
