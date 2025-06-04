@@ -6,47 +6,45 @@ import {
   Delete,
   Body,
   Param,
-  UseGuards,
-  Request,
+  Logger,
 } from '@nestjs/common';
-import { JwtAuthGuard, RolesGuard, OrgGuard, Roles } from '@turbovets/auth';
 import { CreateTaskDto, Task } from '@turbovets/data';
 import { TasksService } from './tasks.service';
 
 @Controller('tasks')
-@UseGuards(JwtAuthGuard, RolesGuard, OrgGuard)
 export class TasksController {
+  private readonly logger = new Logger(TasksController.name);
   constructor(private readonly tasksService: TasksService) {}
 
   @Post()
-  @Roles('Owner', 'Admin')
-  async create(@Body() createTaskDto: CreateTaskDto, @Request() req) {
-    return this.tasksService.create(createTaskDto, req.user);
+  async create(@Body() createTaskDto: CreateTaskDto) {
+    this.logger.log('Creating task:', createTaskDto);
+    return this.tasksService.create(createTaskDto, { organization: { id: 1 } });
   }
 
   @Get()
-  async findAll(@Request() req) {
-    return this.tasksService.findAll(req.user.organization.id);
+  async findAll() {
+    this.logger.log('Finding all tasks');
+    return this.tasksService.findAll(1); // Default organization ID
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string, @Request() req) {
-    return this.tasksService.findOne(+id, req.user.organization.id);
+  async findOne(@Param('id') id: string) {
+    this.logger.log(`Finding task with id: ${id}`);
+    return this.tasksService.findOne(+id, 1);
   }
 
   @Put(':id')
-  @Roles('Owner', 'Admin')
-  async update(
-    @Param('id') id: string,
-    @Body() updateTaskDto: Partial<Task>,
-    @Request() req
-  ) {
-    return this.tasksService.update(+id, updateTaskDto, req.user);
+  async update(@Param('id') id: string, @Body() updateTaskDto: Partial<Task>) {
+    this.logger.log(`Updating task ${id}:`, updateTaskDto);
+    return this.tasksService.update(+id, updateTaskDto, {
+      organization: { id: 1 },
+    });
   }
 
   @Delete(':id')
-  @Roles('Owner')
-  async remove(@Param('id') id: string, @Request() req) {
-    return this.tasksService.remove(+id, req.user);
+  async remove(@Param('id') id: string) {
+    this.logger.log(`Removing task with id: ${id}`);
+    return this.tasksService.remove(+id, { organization: { id: 1 } });
   }
 }

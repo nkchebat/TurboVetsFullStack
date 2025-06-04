@@ -9,5 +9,6 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
   imports: [TypeOrmModule.forFeature([Task]), AuditLogModule],
   providers: [TasksService],
   controllers: [TasksController],
+  exports: [TasksService],
 })
 export class TasksModule {}

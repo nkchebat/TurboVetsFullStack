@@ -1,76 +1,103 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { of } from 'rxjs';
-import { map, mergeMap, catchError } from 'rxjs/operators';
+import { map, switchMap, catchError, tap } from 'rxjs/operators';
 import { ApiService } from '../../core/api.service';
 import * as TaskActions from '../actions/task.actions';
 
 @Injectable()
 export class TaskEffects {
-  constructor(
-    private readonly actions$: Actions,
-    private readonly apiService: ApiService
-  ) {}
+  // ✅ Using inject() - these are resolved at the right time
+  private actions$ = inject(Actions);
+  private apiService = inject(ApiService);
 
+  // ✅ Now this.actions$ and this.apiService are available
   loadTasks$ = createEffect(() => {
-    return of(this.actions$).pipe(
-      mergeMap(() => this.actions$),
+    console.log('[EFFECT] Creating loadTasks$ effect');
+    return this.actions$.pipe(
+      tap((action) => console.log('[EFFECT] Received action:', action)),
       ofType(TaskActions.loadTasks),
-      mergeMap(() =>
-        this.apiService.getTasks().pipe(
-          map((tasks) => TaskActions.loadTasksSuccess({ tasks })),
-          catchError((error) =>
-            of(TaskActions.loadTasksFailure({ error: error.message }))
-          )
-        )
-      )
+      tap(() => console.log('[EFFECT] loadTasks action matched')),
+      switchMap(() => {
+        console.log('[EFFECT] Starting API call');
+        return this.apiService.getTasks().pipe(
+          tap((tasks) => console.log('[EFFECT] API returned tasks:', tasks)),
+          map((tasks) => {
+            console.log('[EFFECT] Mapping to loadTasksSuccess action');
+            return TaskActions.loadTasksSuccess({ tasks });
+          }),
+          catchError((error) => {
+            console.error('[EFFECT] Error in getTasks:', error);
+            return of(
+              TaskActions.loadTasksFailure({
+                error: error.message || 'Unknown error',
+              })
+            );
+          })
+        );
+      })
     );
   });
 
-  createTask$ = createEffect(() => {
-    return of(this.actions$).pipe(
-      mergeMap(() => this.actions$),
+  createTask$ = createEffect(() =>
+    this.actions$.pipe(
       ofType(TaskActions.createTask),
-      mergeMap(({ task }) =>
+      switchMap(({ task }) =>
         this.apiService.createTask(task).pipe(
           map((newTask) => TaskActions.createTaskSuccess({ task: newTask })),
           catchError((error) =>
-            of(TaskActions.createTaskFailure({ error: error.message }))
+            of(
+              TaskActions.createTaskFailure({
+                error: error.message || 'Unknown error',
+              })
+            )
           )
         )
       )
-    );
-  });
+    )
+  );
 
-  updateTask$ = createEffect(() => {
-    return of(this.actions$).pipe(
-      mergeMap(() => this.actions$),
+  updateTask$ = createEffect(() =>
+    this.actions$.pipe(
       ofType(TaskActions.updateTask),
-      mergeMap(({ id, task }) =>
+      switchMap(({ id, task }) =>
         this.apiService.updateTask(id, task).pipe(
           map((updatedTask) =>
             TaskActions.updateTaskSuccess({ task: updatedTask })
           ),
           catchError((error) =>
-            of(TaskActions.updateTaskFailure({ error: error.message }))
+            of(
+              TaskActions.updateTaskFailure({
+                error: error.message || 'Unknown error',
+              })
+            )
           )
         )
       )
-    );
-  });
+    )
+  );
 
-  deleteTask$ = createEffect(() => {
-    return of(this.actions$).pipe(
-      mergeMap(() => this.actions$),
+  deleteTask$ = createEffect(() =>
+    this.actions$.pipe(
       ofType(TaskActions.deleteTask),
-      mergeMap(({ id }) =>
+      switchMap(({ id }) =>
         this.apiService.deleteTask(id).pipe(
           map(() => TaskActions.deleteTaskSuccess({ id })),
           catchError((error) =>
-            of(TaskActions.deleteTaskFailure({ error: error.message }))
+            of(
+              TaskActions.deleteTaskFailure({
+                error: error.message || 'Unknown error',
+              })
+            )
           )
         )
       )
-    );
-  });
+    )
+  );
+
+  constructor() {
+    console.log('[EFFECT] TaskEffects constructor called');
+    console.log('[EFFECT] actions$ initialized:', !!this.actions$);
+    console.log('[EFFECT] apiService initialized:', !!this.apiService);
+  }
 }

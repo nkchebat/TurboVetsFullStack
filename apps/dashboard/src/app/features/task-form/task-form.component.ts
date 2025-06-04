@@ -49,6 +49,17 @@ import { ReactiveFormsModule } from '@angular/forms';
         </div>
 
         <div>
+          <label class="form-label" for="category">Category</label>
+          <select id="category" formControlName="category" class="form-input">
+            <option value="Work">Work</option>
+            <option value="Personal">Personal</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Health">Health</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div>
           <label class="form-label" for="status">Status</label>
           <select id="status" formControlName="status" class="form-input">
             <option value="TODO">To Do</option>
@@ -99,8 +110,9 @@ export class TaskFormComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.taskId = Number(this.route.snapshot.paramMap.get('id'));
-    this.isEditMode = !isNaN(this.taskId);
+    const idParam = this.route.snapshot.paramMap.get('id');
+    this.taskId = idParam ? Number(idParam) : undefined;
+    this.isEditMode = Boolean(this.taskId && !isNaN(this.taskId));
 
     if (this.isEditMode && this.taskId) {
       this.store.select(selectAllTasks).subscribe((tasks) => {

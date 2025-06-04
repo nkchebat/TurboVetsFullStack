@@ -21,8 +21,7 @@ export const appConfig: ApplicationConfig = {
       tasks: taskReducer,
       auth: authReducer,
     }),
-    provideEffects(),
-    TaskEffects,
+    provideEffects([TaskEffects]),
     provideStoreDevtools({
       maxAge: 25,
       logOnly: !isDevMode(),

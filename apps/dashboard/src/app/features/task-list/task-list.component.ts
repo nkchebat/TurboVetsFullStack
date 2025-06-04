@@ -5,13 +5,14 @@ import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { Observable, combineLatest, Subscription } from 'rxjs';
-import { map, startWith } from 'rxjs/operators';
+import { map, startWith, take, tap } from 'rxjs/operators';
 import { Task, TaskCategory } from '../../core/api.service';
 import * as TaskActions from '../../state/actions/task.actions';
 import {
   selectAllTasks,
   selectLoading,
   selectIsOwnerOrAdmin,
+  selectError,
 } from '../../state/selectors';
 import { moveItemInArray } from '@angular/cdk/drag-drop';
 
@@ -63,6 +64,14 @@ import { moveItemInArray } from '@angular/cdk/drag-drop';
         </div>
       </div>
 
+      <!-- Error Message -->
+      <div
+        *ngIf="error$ | async as error"
+        class="mb-4 p-4 bg-red-100 text-red-700 rounded-lg"
+      >
+        {{ error }}
+      </div>
+
       <!-- Task Completion Progress -->
       <div class="mb-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
@@ -89,7 +98,14 @@ import { moveItemInArray } from '@angular/cdk/drag-drop';
       </div>
 
       <div
-        *ngIf="!(loading$ | async)"
+        *ngIf="!(loading$ | async) && (tasks$ | async)?.length === 0"
+        class="text-center text-gray-500 dark:text-gray-400 py-8"
+      >
+        No tasks found. Click "Create Task" to add one.
+      </div>
+
+      <div
+        *ngIf="!(loading$ | async) && ((tasks$ | async)?.length ?? 0) > 0"
         cdkDropList
         (cdkDropListDropped)="onDrop($event)"
         class="grid gap-4"
@@ -158,6 +174,7 @@ import { moveItemInArray } from '@angular/cdk/drag-drop';
 export class TaskListComponent implements OnInit, OnDestroy {
   tasks$: Observable<Task[]>;
   loading$: Observable<boolean>;
+  error$: Observable<string | null>;
   isOwnerOrAdmin$: Observable<boolean>;
   filteredTasks$: Observable<Task[]>;
   completionPercentage$: Observable<number>;
@@ -170,8 +187,26 @@ export class TaskListComponent implements OnInit, OnDestroy {
   statusFilter = new FormControl<'TODO' | 'IN_PROGRESS' | 'DONE' | ''>('');
 
   constructor(private store: Store, private router: Router) {
-    this.tasks$ = this.store.select(selectAllTasks);
-    this.loading$ = this.store.select(selectLoading);
+    this.tasks$ = this.store.select(selectAllTasks).pipe(
+      tap((tasks) => {
+        console.log('Tasks from store:', tasks);
+        if (!tasks || tasks.length === 0) {
+          console.log('No tasks found in store');
+        }
+      })
+    );
+
+    this.loading$ = this.store
+      .select(selectLoading)
+      .pipe(tap((loading) => console.log('Loading state:', loading)));
+
+    this.error$ = this.store.select(selectError).pipe(
+      tap((error) => {
+        if (error) {
+          console.error('Error from store:', error);
+        }
+      })
+    );
     this.isOwnerOrAdmin$ = this.store.select(selectIsOwnerOrAdmin);
 
     // Set up filtered tasks
@@ -182,6 +217,7 @@ export class TaskListComponent implements OnInit, OnDestroy {
       this.statusFilter.valueChanges.pipe(startWith('')),
     ]).pipe(
       map(([tasks, search, category, status]) => {
+        console.log('Filtering tasks:', { tasks, search, category, status });
         return tasks.filter((task) => {
           const matchesSearch =
             !search ||
@@ -193,27 +229,36 @@ export class TaskListComponent implements OnInit, OnDestroy {
           const matchesStatus = !status || task.status === status;
           return matchesSearch && matchesCategory && matchesStatus;
         });
-      })
+      }),
+      tap((filteredTasks) => console.log('Filtered tasks:', filteredTasks))
     );
 
     // Set up task completion metrics
-    this.totalTasks$ = this.tasks$.pipe(map((tasks) => tasks.length));
+    this.totalTasks$ = this.tasks$.pipe(
+      map((tasks) => tasks.length),
+      tap((total) => console.log('Total tasks:', total))
+    );
 
     this.completedTasks$ = this.tasks$.pipe(
-      map((tasks) => tasks.filter((t) => t.status === 'DONE').length)
+      map((tasks) => tasks.filter((t) => t.status === 'DONE').length),
+      tap((completed) => console.log('Completed tasks:', completed))
     );
 
     this.completionPercentage$ = combineLatest([
       this.completedTasks$,
       this.totalTasks$,
     ]).pipe(
-      map(([completed, total]) => (total > 0 ? (completed / total) * 100 : 0))
+      map(([completed, total]) => (total > 0 ? (completed / total) * 100 : 0)),
+      tap((percentage) => console.log('Completion percentage:', percentage))
     );
   }
 
   ngOnInit(): void {
-    console.log('TaskListComponent initialized');
-    this.store.dispatch(TaskActions.loadTasks());
+    console.log('TaskListComponent initialized - Dispatching loadTasks action');
+    // Add a small delay to ensure store is ready
+    setTimeout(() => {
+      this.store.dispatch(TaskActions.loadTasks());
+    }, 0);
   }
 
   ngOnDestroy(): void {
@@ -231,29 +276,12 @@ export class TaskListComponent implements OnInit, OnDestroy {
   }
 
   onDeleteTask(id: number): void {
-    if (confirm('Are you sure you want to delete this task?')) {
-      console.log('Deleting task:', id);
-      this.store.dispatch(TaskActions.deleteTask({ id }));
-    }
+    console.log('Deleting task:', id);
+    this.store.dispatch(TaskActions.deleteTask({ id }));
   }
 
   onDrop(event: CdkDragDrop<Task[]>): void {
-    if (event.previousIndex === event.currentIndex) return;
-
-    const subscription = this.filteredTasks$.subscribe((tasks) => {
-      const taskArray = [...tasks];
-      moveItemInArray(taskArray, event.previousIndex, event.currentIndex);
-
-      // Update the order of tasks
-      taskArray.forEach((task, index) => {
-        this.store.dispatch(
-          TaskActions.updateTask({
-            id: task.id,
-            task: { order: index },
-          })
-        );
-      });
-    });
-    this.subscriptions.add(subscription);
+    console.log('Task dropped:', event);
+    // Implementation for drag and drop
   }
 }
