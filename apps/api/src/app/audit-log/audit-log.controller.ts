@@ -11,9 +11,9 @@ export class AuditLogController {
   @Roles('Owner', 'Admin')
   async findAll(@Request() req) {
     // If Owner, show all logs. If Admin, show only their org's logs
-    return this.auditLogService.findAll(
-      req.user.role === 'Admin' ? req.user.id : undefined
-    );
+    const organizationId =
+      req.user.role === 'Admin' ? req.user.organization.id : undefined;
+    return this.auditLogService.findAll(organizationId);
   }
 
   @Get('task/:taskId')

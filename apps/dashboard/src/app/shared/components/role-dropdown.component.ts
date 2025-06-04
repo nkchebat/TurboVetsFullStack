@@ -3,9 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { Observable } from 'rxjs';
+import { take } from 'rxjs/operators';
 import { UserRole } from '../../core/auth.service';
+import { ApiService, Organization } from '../../core/api.service';
 import * as AuthActions from '../../state/actions/auth.actions';
 import { selectUserRole } from '../../state/selectors';
+import { selectCurrentOrganization } from '../../state/selectors/organization.selectors';
 
 @Component({
   selector: 'app-role-dropdown',
@@ -17,9 +20,9 @@ import { selectUserRole } from '../../state/selectors';
         <span class="font-medium">Role:</span>
         <div class="relative">
           <select
-            [ngModel]="(userRole$ | async) || 'Viewer'"
+            [ngModel]="(userRole$ | async) || 'Admin'"
             (ngModelChange)="onRoleChange($event)"
-            class="custom-select appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 pr-8 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer transition-colors duration-200"
+            class="custom-select appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 pr-8 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer transition-colors duration-200 min-w-[80px]"
           >
             <option value="Owner">Owner</option>
             <option value="Admin">Admin</option>
@@ -30,7 +33,7 @@ import { selectUserRole } from '../../state/selectors';
             class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none"
           >
             <svg
-              class="w-4 h-4 text-gray-400 dark:text-gray-500"
+              class="w-3 h-3 text-gray-400 dark:text-gray-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -74,15 +77,47 @@ import { selectUserRole } from '../../state/selectors';
 })
 export class RoleDropdownComponent implements OnInit {
   userRole$: Observable<UserRole>;
+  currentOrganization$: Observable<Organization | null>;
 
-  constructor(private store: Store) {
+  // Base user IDs for each role
+  private roleUserIds = {
+    Owner: 0, // Owner user
+    Admin: 1, // Admin user
+    Viewer: 3, // Viewer user
+  };
+
+  constructor(private store: Store, private apiService: ApiService) {
     this.userRole$ = this.store.select(selectUserRole);
+    this.currentOrganization$ = this.store.select(selectCurrentOrganization);
   }
 
   ngOnInit(): void {}
 
   onRoleChange(role: UserRole): void {
     console.log('Role changed to:', role);
-    this.store.dispatch(AuthActions.setUserRole({ role }));
+
+    // Get the current organization to maintain context
+    this.currentOrganization$.pipe(take(1)).subscribe((currentOrg) => {
+      const currentOrgId = currentOrg?.id || 1; // Default to main org if none selected
+      const userId = this.roleUserIds[role];
+
+      try {
+        // Update API service with new role and user
+        this.apiService.setCurrentUserRole(role, userId);
+
+        // The organization is already maintained by the API service
+        // No need to explicitly set it since it preserves the current selection
+
+        // Update store
+        this.store.dispatch(AuthActions.setUserRole({ role }));
+
+        console.log(
+          `Switched to ${role} - User ID: ${userId}, Org: ${currentOrgId} (${currentOrg?.name})`
+        );
+      } catch (error) {
+        console.error('Error switching role:', error);
+        // Could show a notification to user here
+      }
+    });
   }
 }

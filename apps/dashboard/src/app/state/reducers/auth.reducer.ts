@@ -8,7 +8,7 @@ export interface AuthState {
 }
 
 export const initialState: AuthState = {
-  userRole: 'Viewer',
+  userRole: 'Admin',
   isLoggedIn: true, // For demo purposes
 };
 

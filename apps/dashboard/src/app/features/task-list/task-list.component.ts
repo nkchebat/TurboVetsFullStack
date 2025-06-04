@@ -24,105 +24,115 @@ import { TaskEditDialogComponent } from '../../shared/components/task-edit-dialo
 @Component({
   selector: 'app-task-list',
   template: `
-    <div class="p-4">
-      <div
-        class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4"
-      >
-        <h1 class="text-2xl font-bold dark:text-white">Tasks</h1>
-        <div class="flex flex-col md:flex-row gap-4">
-          <!-- Search and Filters -->
-          <div class="flex gap-2">
-            <input
-              #searchInput
-              type="text"
-              [formControl]="searchControl"
-              placeholder="Search tasks..."
-              class="form-input w-48 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-            />
-            <select
-              #categorySelect
-              [formControl]="categoryFilter"
-              class="form-input w-32 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-            >
-              <option value="">All Categories</option>
-              <option value="Work">Work</option>
-              <option value="Personal">Personal</option>
-              <option value="Shopping">Shopping</option>
-              <option value="Health">Health</option>
-              <option value="Other">Other</option>
-            </select>
-            <select
-              #statusSelect
-              [formControl]="statusFilter"
-              class="form-input w-32 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-            >
-              <option value="">All Status</option>
-              <option value="TODO">To Do</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="DONE">Done</option>
-            </select>
-          </div>
-
-          <!-- Quick Delete Toggle -->
-          <div *ngIf="isOwnerOrAdmin$ | async" class="flex items-center gap-2">
-            <label
-              class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
-              <div
-                class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in"
-              >
-                <input
-                  type="checkbox"
-                  [checked]="quickDeleteEnabled"
-                  (click)="onQuickDeleteToggle($event)"
-                  class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
-                />
-                <label
-                  class="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer"
-                  [class.bg-orange-400]="quickDeleteEnabled"
-                  [class.bg-gray-300]="!quickDeleteEnabled"
-                  [class.dark:bg-gray-600]="!quickDeleteEnabled"
-                ></label>
-              </div>
-              <span class="flex items-center gap-1">
-                <svg
-                  class="w-4 h-4 text-orange-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                  />
-                </svg>
-                Quick Delete
-              </span>
-            </label>
-          </div>
-
+    <div class="p-2 sm:p-4">
+      <div class="flex flex-col gap-4 mb-6">
+        <div
+          class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4"
+        >
+          <h1 class="text-xl sm:text-2xl font-bold dark:text-white">Tasks</h1>
           <button
             *ngIf="isOwnerOrAdmin$ | async"
-            class="btn btn-primary"
+            class="btn btn-primary w-full sm:w-auto"
             (click)="onCreateTask()"
           >
             Create Task
           </button>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-4 shadow-sm">
+          <div class="flex flex-col gap-3">
+            <!-- Search and Filters Row 1 -->
+            <div class="flex flex-col sm:flex-row gap-3">
+              <input
+                #searchInput
+                type="text"
+                [formControl]="searchControl"
+                placeholder="Search tasks..."
+                class="form-input flex-1 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              />
+              <div class="flex gap-2">
+                <select
+                  #categorySelect
+                  [formControl]="categoryFilter"
+                  class="form-input flex-1 sm:w-36 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                >
+                  <option value="">All Categories</option>
+                  <option value="Work">Work</option>
+                  <option value="Personal">Personal</option>
+                  <option value="Shopping">Shopping</option>
+                  <option value="Health">Health</option>
+                  <option value="Other">Other</option>
+                </select>
+                <select
+                  #statusSelect
+                  [formControl]="statusFilter"
+                  class="form-input flex-1 sm:w-32 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                >
+                  <option value="">All Status</option>
+                  <option value="TODO">To Do</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="DONE">Done</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Quick Delete Toggle Row -->
+            <div
+              *ngIf="isOwnerOrAdmin$ | async"
+              class="flex justify-center sm:justify-start"
+            >
+              <label
+                class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                <div
+                  class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in"
+                >
+                  <input
+                    type="checkbox"
+                    [checked]="quickDeleteEnabled"
+                    (click)="onQuickDeleteToggle($event)"
+                    class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                  />
+                  <label
+                    class="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer"
+                    [class.bg-orange-400]="quickDeleteEnabled"
+                    [class.bg-gray-300]="!quickDeleteEnabled"
+                    [class.dark:bg-gray-600]="!quickDeleteEnabled"
+                  ></label>
+                </div>
+                <span class="flex items-center gap-1">
+                  <svg
+                    class="w-4 h-4 text-orange-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                  Quick Delete
+                </span>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Error Message -->
       <div
         *ngIf="error$ | async as error"
-        class="mb-4 p-4 bg-red-100 text-red-700 rounded-lg"
+        class="mb-4 p-3 sm:p-4 bg-red-100 text-red-700 rounded-lg text-sm"
       >
         {{ error }}
       </div>
 
       <!-- Task Completion Progress -->
-      <div class="mb-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+      <div class="mb-6 bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow">
         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
           Task Progress
         </h3>
@@ -157,12 +167,12 @@ import { TaskEditDialogComponent } from '../../shared/components/task-edit-dialo
         *ngIf="!(loading$ | async) && ((tasks$ | async)?.length ?? 0) > 0"
         cdkDropList
         (cdkDropListDropped)="onDrop($event)"
-        class="grid gap-4"
+        class="grid gap-3 sm:gap-4"
       >
         <div
           *ngFor="let task of filteredTasks$ | async; let i = index"
           cdkDrag
-          class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow cursor-move"
+          class="p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-lg shadow cursor-move"
           [class.border-l-4]="true"
           [class.border-yellow-500]="task.status === 'TODO'"
           [class.border-blue-500]="task.status === 'IN_PROGRESS'"
@@ -171,14 +181,18 @@ import { TaskEditDialogComponent } from '../../shared/components/task-edit-dialo
           [class.ring-blue-500]="selectedTaskIndex === i"
           [class.ring-opacity-50]="selectedTaskIndex === i"
         >
-          <div class="flex justify-between items-start">
-            <div>
-              <div class="flex items-center gap-2">
-                <h3 class="text-lg font-semibold dark:text-white">
+          <div
+            class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3"
+          >
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                <h3
+                  class="text-base sm:text-lg font-semibold dark:text-white break-words"
+                >
                   {{ task.title }}
                 </h3>
                 <span
-                  class="px-2 py-1 text-xs rounded-full"
+                  class="px-2 py-1 text-xs rounded-full self-start"
                   [class.bg-purple-100]="task.category === 'Work'"
                   [class.bg-orange-100]="task.category === 'Personal'"
                   [class.bg-blue-100]="task.category === 'Shopping'"
@@ -188,11 +202,13 @@ import { TaskEditDialogComponent } from '../../shared/components/task-edit-dialo
                   {{ task.category }}
                 </span>
               </div>
-              <p class="text-gray-600 dark:text-gray-300 mt-1">
+              <p
+                class="text-gray-600 dark:text-gray-300 text-sm sm:text-base mb-2 break-words"
+              >
                 {{ task.description }}
               </p>
               <span
-                class="inline-block mt-2 px-2 py-1 text-sm rounded-full"
+                class="inline-block px-2 py-1 text-xs sm:text-sm rounded-full"
                 [class.bg-yellow-100]="task.status === 'TODO'"
                 [class.bg-blue-100]="task.status === 'IN_PROGRESS'"
                 [class.bg-green-100]="task.status === 'DONE'"
@@ -201,15 +217,18 @@ import { TaskEditDialogComponent } from '../../shared/components/task-edit-dialo
               </span>
             </div>
 
-            <div *ngIf="isOwnerOrAdmin$ | async" class="flex gap-2">
+            <div
+              *ngIf="isOwnerOrAdmin$ | async"
+              class="flex flex-row sm:flex-col lg:flex-row gap-2 sm:flex-shrink-0"
+            >
               <button
-                class="btn btn-primary text-sm"
+                class="btn btn-primary text-sm flex-1 sm:flex-none min-h-[40px] px-3 py-2"
                 (click)="onEditTask(task)"
               >
                 Edit
               </button>
               <button
-                class="btn btn-danger text-sm flex items-center gap-1 min-w-fit whitespace-nowrap"
+                class="btn btn-danger text-sm flex-1 sm:flex-none flex items-center justify-center gap-1 min-h-[40px] px-3 py-2"
                 (click)="onDeleteTask(task)"
                 [title]="
                   quickDeleteEnabled

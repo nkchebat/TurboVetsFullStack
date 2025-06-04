@@ -7,7 +7,7 @@ export type UserRole = 'Owner' | 'Admin' | 'Viewer';
   providedIn: 'root',
 })
 export class AuthService {
-  private userRoleSubject = new BehaviorSubject<UserRole>('Viewer');
+  private userRoleSubject = new BehaviorSubject<UserRole>('Admin'); // Default to Admin
   userRole$ = this.userRoleSubject.asObservable();
 
   constructor() {

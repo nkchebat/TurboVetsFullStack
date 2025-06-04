@@ -23,23 +23,25 @@ import { Task, TaskCategory } from '../../core/api.service';
     <!-- Overlay -->
     <div
       *ngIf="isOpen"
-      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 animate-fade-in"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in"
       (click)="onCancel()"
     >
       <!-- Dialog -->
       <div
-        class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto transform transition-all duration-200 scale-100 animate-scale-in"
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto transform transition-all duration-200 scale-100 animate-scale-in modal-mobile"
         (click)="$event.stopPropagation()"
       >
         <!-- Header -->
-        <div class="p-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+        <div
+          class="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-gray-200 dark:border-gray-700"
+        >
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
               Create New Task
             </h3>
             <button
               type="button"
-              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
               (click)="onCancel()"
             >
               <svg
@@ -60,19 +62,19 @@ import { Task, TaskCategory } from '../../core/api.service';
         </div>
 
         <!-- Content -->
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
           <form
             [formGroup]="taskForm"
             (ngSubmit)="onSubmit()"
             class="space-y-4"
           >
             <div>
-              <label class="form-label" for="title">Title *</label>
+              <label class="form-label text-sm" for="title">Title *</label>
               <input
                 id="title"
                 type="text"
                 formControlName="title"
-                class="form-input w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                class="form-input w-full text-sm sm:text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
                 [class.border-red-500]="
                   taskForm.get('title')?.invalid &&
                   taskForm.get('title')?.touched
@@ -91,23 +93,27 @@ import { Task, TaskCategory } from '../../core/api.service';
             </div>
 
             <div>
-              <label class="form-label" for="description">Description</label>
+              <label class="form-label text-sm" for="description"
+                >Description</label
+              >
               <textarea
                 id="description"
                 formControlName="description"
-                class="form-input w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                class="form-input w-full text-sm sm:text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
                 rows="3"
                 placeholder="Enter task description (optional)..."
               ></textarea>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="form-label" for="category">Category</label>
+                <label class="form-label text-sm" for="category"
+                  >Category</label
+                >
                 <select
                   id="category"
                   formControlName="category"
-                  class="form-input w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                  class="form-input w-full text-sm sm:text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
                 >
                   <option value="Work">Work</option>
                   <option value="Personal">Personal</option>
@@ -118,11 +124,11 @@ import { Task, TaskCategory } from '../../core/api.service';
               </div>
 
               <div>
-                <label class="form-label" for="status">Status</label>
+                <label class="form-label text-sm" for="status">Status</label>
                 <select
                   id="status"
                   formControlName="status"
-                  class="form-input w-full dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                  class="form-input w-full text-sm sm:text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
                 >
                   <option value="TODO">To Do</option>
                   <option value="IN_PROGRESS">In Progress</option>
@@ -135,19 +141,19 @@ import { Task, TaskCategory } from '../../core/api.service';
 
         <!-- Actions -->
         <div
-          class="px-6 py-4 bg-gray-50 dark:bg-gray-700 rounded-b-lg border-t border-gray-200 dark:border-gray-600"
+          class="px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 dark:bg-gray-700 rounded-b-lg border-t border-gray-200 dark:border-gray-600"
         >
-          <div class="flex gap-3 justify-end">
+          <div class="flex flex-col sm:flex-row gap-3 sm:justify-end">
             <button
               type="button"
-              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+              class="btn btn-secondary text-sm order-2 sm:order-1 dark:text-white"
               (click)="onCancel()"
             >
               Cancel
             </button>
             <button
               type="button"
-              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              class="btn btn-primary text-sm order-1 sm:order-2 disabled:opacity-50 disabled:cursor-not-allowed"
               [disabled]="taskForm.invalid"
               (click)="onSubmit()"
             >

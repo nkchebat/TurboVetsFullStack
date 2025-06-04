@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import { Organization } from './organization.entity';
 
 export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
 
@@ -24,4 +25,10 @@ export class AuditLog {
 
   @Column({ type: 'text' })
   details: string;
+
+  @Column()
+  organizationId: number;
+
+  @ManyToOne(() => Organization)
+  organization: Organization;
 }

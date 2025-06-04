@@ -85,7 +85,8 @@ describe('TasksService', () => {
         mockUser.id,
         'CREATE',
         mockTask.id,
-        'Task created'
+        'Task created',
+        mockUser.organization.id
       );
     });
   });
@@ -130,7 +131,8 @@ describe('TasksService', () => {
         mockUser.id,
         'UPDATE',
         mockTask.id,
-        'Task updated'
+        'Task updated',
+        mockUser.organization.id
       );
     });
 
@@ -152,7 +154,8 @@ describe('TasksService', () => {
         mockUser.id,
         'DELETE',
         mockTask.id,
-        'Task deleted'
+        'Task deleted',
+        mockUser.organization.id
       );
     });
 

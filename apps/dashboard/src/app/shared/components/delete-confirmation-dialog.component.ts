@@ -7,16 +7,16 @@ import { CommonModule } from '@angular/common';
     <!-- Overlay -->
     <div
       *ngIf="isOpen"
-      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 animate-fade-in"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in"
       (click)="onCancel()"
     >
       <!-- Dialog -->
       <div
-        class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-md w-full transform transition-all duration-200 scale-100 animate-scale-in"
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-md w-full transform transition-all duration-200 scale-100 animate-scale-in modal-mobile"
         (click)="$event.stopPropagation()"
       >
         <!-- Header -->
-        <div class="p-6 pb-4">
+        <div class="p-4 sm:p-6 pb-3 sm:pb-4">
           <div class="flex items-center gap-3">
             <!-- Warning Icon -->
             <div class="flex-shrink-0">
@@ -43,8 +43,10 @@ import { CommonModule } from '@angular/common';
         </div>
 
         <!-- Content -->
-        <div class="px-6 pb-4">
-          <p class="text-gray-600 dark:text-gray-300 leading-relaxed">
+        <div class="px-4 sm:px-6 pb-3 sm:pb-4">
+          <p
+            class="text-gray-600 dark:text-gray-300 leading-relaxed text-sm sm:text-base"
+          >
             Are you sure you want to delete the task<br />
             <span
               class="font-semibold text-gray-900 dark:text-white px-1 rounded"
@@ -58,24 +60,26 @@ import { CommonModule } from '@angular/common';
               "{{ taskTitle }}"</span
             >
           </p>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+          <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-2">
             This action cannot be undone.
           </p>
         </div>
 
         <!-- Actions -->
-        <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700 rounded-b-lg">
-          <div class="flex gap-3 justify-end">
+        <div
+          class="px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 dark:bg-gray-700 rounded-b-lg"
+        >
+          <div class="flex flex-col sm:flex-row gap-3 sm:justify-end">
             <button
               type="button"
-              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+              class="btn btn-secondary text-sm order-2 sm:order-1 dark:text-white"
               (click)="onCancel()"
             >
               Cancel
             </button>
             <button
               type="button"
-              class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200 hover:shadow-lg"
+              class="btn btn-danger text-sm order-1 sm:order-2"
               (click)="onConfirm()"
             >
               Delete Task

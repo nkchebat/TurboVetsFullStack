@@ -100,11 +100,7 @@ import { ReactiveFormsModule } from '@angular/forms';
           >
             {{ isEditMode ? 'Update' : 'Create' }}
           </button>
-          <button
-            type="button"
-            class="btn bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-white"
-            (click)="onCancel()"
-          >
+          <button type="button" class="btn btn-secondary" (click)="onCancel()">
             Cancel
           </button>
         </div>

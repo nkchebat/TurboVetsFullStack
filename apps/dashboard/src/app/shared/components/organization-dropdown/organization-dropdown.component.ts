@@ -5,7 +5,8 @@ import { Store } from '@ngrx/store';
 import { Observable, Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 
-import { Organization } from '../../../core/api.service';
+import { Organization, ApiService } from '../../../core/api.service';
+import { selectUserRole } from '../../../state/selectors';
 import * as OrganizationActions from '../../../state/actions/organization.actions';
 import {
   selectOrganizations,
@@ -14,6 +15,11 @@ import {
   selectOrganizationError,
 } from '../../../state/selectors/organization.selectors';
 import { Actions, ofType } from '@ngrx/effects';
+
+interface ErrorNotification {
+  message: string;
+  type: 'error' | 'warning' | 'info';
+}
 
 @Component({
   selector: 'app-organization-dropdown',
@@ -26,99 +32,138 @@ export class OrganizationDropdownComponent implements OnInit, OnDestroy {
   currentOrganization$: Observable<Organization | null>;
   loading$: Observable<boolean>;
   error$: Observable<string | null>;
+  userRole$: Observable<string>;
 
   isOpen = false;
   showingAddForm = false;
   newOrgName = '';
+  errorNotification: ErrorNotification | null = null;
 
   private destroy$ = new Subject<void>();
 
-  constructor(private store: Store, private actions$: Actions) {
+  constructor(
+    private store: Store,
+    private actions$: Actions,
+    private apiService: ApiService
+  ) {
     this.organizations$ = this.store.select(selectOrganizations);
     this.currentOrganization$ = this.store.select(selectCurrentOrganization);
     this.loading$ = this.store.select(selectOrganizationLoading);
     this.error$ = this.store.select(selectOrganizationError);
+    this.userRole$ = this.store.select(selectUserRole);
   }
 
   ngOnInit(): void {
-    console.log('[ORG DROPDOWN] Initializing and loading organizations');
-    // Load organizations on init
+    // Load organizations on component initialization
     this.store.dispatch(OrganizationActions.loadOrganizations());
 
-    // Listen for successful organization creation
+    // Listen for role changes and close dropdown if switching from Owner to non-Owner
+    this.userRole$.pipe(takeUntil(this.destroy$)).subscribe((role) => {
+      if (role !== 'Owner') {
+        // Close dropdown and forms when switching to Admin/Viewer
+        this.isOpen = false;
+        this.showingAddForm = false;
+        this.newOrgName = '';
+        this.clearError();
+      }
+    });
+
+    // Listen for organization creation success to close the form
     this.actions$
       .pipe(
         ofType(OrganizationActions.createOrganizationSuccess),
         takeUntil(this.destroy$)
       )
-      .subscribe(({ organization }) => {
-        console.log(
-          '[ORG DROPDOWN] Organization created successfully:',
-          organization
-        );
-        // Hide the add form after successful creation
-        this.hideAddForm();
+      .subscribe(() => {
+        this.showingAddForm = false;
+        this.newOrgName = '';
+        this.isOpen = false;
       });
 
-    // Listen for organization creation failures
+    // Listen for organization creation failure
     this.actions$
       .pipe(
         ofType(OrganizationActions.createOrganizationFailure),
         takeUntil(this.destroy$)
       )
       .subscribe(({ error }) => {
-        console.error('[ORG DROPDOWN] Organization creation failed:', error);
-        // Keep the form open so user can retry
+        console.error('Failed to create organization:', error);
+        this.showError('Failed to create organization: ' + error);
       });
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', this.handleClickOutside.bind(this));
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    document.removeEventListener('click', this.handleClickOutside.bind(this));
   }
 
   toggleDropdown(): void {
     this.isOpen = !this.isOpen;
-    console.log('[ORG DROPDOWN] Toggled dropdown, isOpen:', this.isOpen);
+    this.showingAddForm = false; // Close add form when toggling
+    this.clearError();
   }
 
   selectOrganization(organization: Organization): void {
-    console.log('[ORG DROPDOWN] Selecting organization:', organization);
-    this.store.dispatch(
-      OrganizationActions.setCurrentOrganization({
-        organizationId: organization.id,
-      })
+    console.log(
+      '[ORG DROPDOWN] Attempting to select organization:',
+      organization
     );
-    this.isOpen = false;
+
+    try {
+      // Check if user has access to this organization
+      if (!this.apiService.canAccessOrganization(organization.id)) {
+        const userRole = this.apiService.getCurrentUserRole();
+        this.showError(
+          `Access denied: ${userRole} users can only access their assigned organization.`
+        );
+        return;
+      }
+
+      this.store.dispatch(
+        OrganizationActions.setCurrentOrganization({
+          organizationId: organization.id,
+        })
+      );
+      this.isOpen = false;
+      this.clearError();
+      console.log(
+        '[ORG DROPDOWN] Successfully selected organization:',
+        organization.name
+      );
+    } catch (error: any) {
+      console.error('[ORG DROPDOWN] Error selecting organization:', error);
+      this.showError(error.message || 'Failed to switch organization');
+    }
   }
 
   showAddForm(): void {
-    console.log('[ORG DROPDOWN] Showing add form');
-    this.showingAddForm = true;
-    this.isOpen = false;
-    this.newOrgName = '';
+    const userRole = this.apiService.getCurrentUserRole();
 
-    // Focus on input after a short delay to ensure it's rendered
-    setTimeout(() => {
-      const input = document.getElementById('orgName') as HTMLInputElement;
-      if (input) {
-        input.focus();
-      }
-    }, 100);
+    // Only Owners can create organizations
+    if (userRole !== 'Owner') {
+      this.showError(`Access denied: Only Owners can create organizations.`);
+      return;
+    }
+
+    this.showingAddForm = true;
+    this.clearError();
   }
 
   hideAddForm(): void {
-    console.log('[ORG DROPDOWN] Hiding add form');
     this.showingAddForm = false;
     this.newOrgName = '';
+    this.clearError();
   }
 
-  createOrganization(): void {
+  addOrganization(): void {
     if (!this.newOrgName.trim()) {
+      this.showError('Organization name cannot be empty');
+      return;
+    }
+
+    const userRole = this.apiService.getCurrentUserRole();
+    if (userRole !== 'Owner') {
+      this.showError('Access denied: Only Owners can create organizations.');
       return;
     }
 
@@ -128,21 +173,29 @@ export class OrganizationDropdownComponent implements OnInit, OnDestroy {
         organization: { name: this.newOrgName.trim() },
       })
     );
-
-    // Don't hide the form immediately - wait for success/failure
-    // The form will be hidden in the success handler
   }
 
   trackByOrgId(index: number, org: Organization): number {
     return org.id;
   }
 
-  private handleClickOutside(event: Event): void {
-    const target = event.target as Element;
-    const dropdown = target.closest('app-organization-dropdown');
+  private showError(message: string): void {
+    this.errorNotification = {
+      message,
+      type: 'error',
+    };
 
-    if (!dropdown && this.isOpen) {
-      this.isOpen = false;
-    }
+    // Auto-hide error after 5 seconds
+    setTimeout(() => {
+      this.clearError();
+    }, 5000);
+  }
+
+  private clearError(): void {
+    this.errorNotification = null;
+  }
+
+  dismissError(): void {
+    this.clearError();
   }
 }

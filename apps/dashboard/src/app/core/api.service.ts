@@ -36,6 +36,8 @@ export interface AuditLog {
   taskId: number;
   details: string;
   timestamp: string;
+  organizationId?: number;
+  organizationName?: string;
 }
 
 // Mock data for development - organized by organization
@@ -120,6 +122,262 @@ const ORGANIZATION_TASKS: { [orgId: number]: Task[] } = {
   ],
 };
 
+// Mock audit log data organized by organization
+const ORGANIZATION_AUDIT_LOGS: { [orgId: number]: AuditLog[] } = {
+  // Owner-level logs (organization 0 represents Owner/System level)
+  0: [
+    {
+      id: 1000,
+      userId: 0,
+      action: 'CREATE',
+      taskId: 1000,
+      details: 'Created system-wide backup policy',
+      timestamp: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), // 15 days ago
+      organizationId: 0,
+      organizationName: 'Owner',
+    },
+    {
+      id: 1001,
+      userId: 0,
+      action: 'UPDATE',
+      taskId: 1001,
+      details: 'Updated global security settings',
+      timestamp: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(), // 3 months ago
+      organizationId: 0,
+      organizationName: 'Owner',
+    },
+    {
+      id: 1002,
+      userId: 0,
+      action: 'CREATE',
+      taskId: 1002,
+      details: 'Established new branch protocols',
+      timestamp: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(), // 6 months ago
+      organizationId: 0,
+      organizationName: 'Owner',
+    },
+    {
+      id: 1003,
+      userId: 0,
+      action: 'DELETE',
+      taskId: 1003,
+      details: 'Removed outdated compliance requirements',
+      timestamp: new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString(), // Over 1 year ago
+      organizationId: 0,
+      organizationName: 'Owner',
+    },
+    {
+      id: 1004,
+      userId: 0,
+      action: 'UPDATE',
+      taskId: 1004,
+      details: 'Annual system maintenance completed',
+      timestamp: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year ago
+      organizationId: 0,
+      organizationName: 'Owner',
+    },
+  ],
+  1: [
+    {
+      id: 1,
+      userId: 1,
+      action: 'CREATE',
+      taskId: 1,
+      details: 'Created task: Complete project documentation',
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+      organizationId: 1,
+      organizationName: 'TurboVets Main',
+    },
+    {
+      id: 2,
+      userId: 2,
+      action: 'UPDATE',
+      taskId: 2,
+      details:
+        'Updated task status from TODO to IN_PROGRESS: Review pull requests',
+      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
+      organizationId: 1,
+      organizationName: 'TurboVets Main',
+    },
+    {
+      id: 3,
+      userId: 1,
+      action: 'DELETE',
+      taskId: 99,
+      details: 'Deleted task: Old maintenance task',
+      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+      organizationId: 1,
+      organizationName: 'TurboVets Main',
+    },
+    {
+      id: 4,
+      userId: 3,
+      action: 'CREATE',
+      taskId: 3,
+      details: 'Created task: Schedule main clinic equipment check',
+      timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+      organizationId: 1,
+      organizationName: 'TurboVets Main',
+    },
+    {
+      id: 5,
+      userId: 2,
+      action: 'UPDATE',
+      taskId: 5,
+      details: 'Updated weekly schedule for main clinic',
+      timestamp: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 1 month ago
+      organizationId: 1,
+      organizationName: 'TurboVets Main',
+    },
+    {
+      id: 6,
+      userId: 1,
+      action: 'CREATE',
+      taskId: 6,
+      details: 'Created quarterly review process',
+      timestamp: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(), // 4 months ago
+      organizationId: 1,
+      organizationName: 'TurboVets Main',
+    },
+    {
+      id: 7,
+      userId: 3,
+      action: 'DELETE',
+      taskId: 7,
+      details: 'Removed obsolete training materials',
+      timestamp: new Date(Date.now() - 450 * 24 * 60 * 60 * 1000).toISOString(), // Over 1 year ago
+      organizationId: 1,
+      organizationName: 'TurboVets Main',
+    },
+  ],
+  2: [
+    {
+      id: 101,
+      userId: 4,
+      action: 'CREATE',
+      taskId: 101,
+      details: 'Created task: North Branch inventory check',
+      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
+      organizationId: 2,
+      organizationName: 'TurboVets North Branch',
+    },
+    {
+      id: 102,
+      userId: 4,
+      action: 'UPDATE',
+      taskId: 102,
+      details: 'Updated task description: Update north branch protocols',
+      timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), // 12 hours ago
+      organizationId: 2,
+      organizationName: 'TurboVets North Branch',
+    },
+    {
+      id: 103,
+      userId: 4,
+      action: 'CREATE',
+      taskId: 103,
+      details: 'Implemented new patient intake system',
+      timestamp: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(), // 1.5 months ago
+      organizationId: 2,
+      organizationName: 'TurboVets North Branch',
+    },
+    {
+      id: 104,
+      userId: 4,
+      action: 'UPDATE',
+      taskId: 104,
+      details: 'Updated staff schedules for holidays',
+      timestamp: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(), // 3+ months ago
+      organizationId: 2,
+      organizationName: 'TurboVets North Branch',
+    },
+    {
+      id: 105,
+      userId: 4,
+      action: 'DELETE',
+      taskId: 105,
+      details: 'Removed old equipment records',
+      timestamp: new Date(Date.now() - 380 * 24 * 60 * 60 * 1000).toISOString(), // Over 1 year ago
+      organizationId: 2,
+      organizationName: 'TurboVets North Branch',
+    },
+  ],
+  3: [
+    {
+      id: 201,
+      userId: 5,
+      action: 'UPDATE',
+      taskId: 203,
+      details: 'Completed task: Customer satisfaction survey',
+      timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), // 8 hours ago
+      organizationId: 3,
+      organizationName: 'TurboVets South Branch',
+    },
+    {
+      id: 202,
+      userId: 5,
+      action: 'CREATE',
+      taskId: 201,
+      details: 'Created task: South Branch staff training',
+      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+      organizationId: 3,
+      organizationName: 'TurboVets South Branch',
+    },
+    {
+      id: 203,
+      userId: 5,
+      action: 'UPDATE',
+      taskId: 202,
+      details: 'Updated emergency procedures',
+      timestamp: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(), // 2 months ago
+      organizationId: 3,
+      organizationName: 'TurboVets South Branch',
+    },
+    {
+      id: 204,
+      userId: 5,
+      action: 'CREATE',
+      taskId: 204,
+      details: 'Established client feedback system',
+      timestamp: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(), // 5 months ago
+      organizationId: 3,
+      organizationName: 'TurboVets South Branch',
+    },
+    {
+      id: 205,
+      userId: 5,
+      action: 'DELETE',
+      taskId: 205,
+      details: 'Archived old patient records',
+      timestamp: new Date(Date.now() - 420 * 24 * 60 * 60 * 1000).toISOString(), // Over 1 year ago
+      organizationId: 3,
+      organizationName: 'TurboVets South Branch',
+    },
+  ],
+};
+
+// Mock user data for audit log display
+const MOCK_USERS: { [userId: number]: { name: string; email: string } } = {
+  0: { name: 'Owner', email: 'owner@turbovets.com' },
+  1: { name: 'Sarah Johnson', email: 'sarah.johnson@turbovets.com' },
+  2: { name: 'Michael Chen', email: 'michael.chen@turbovets.com' },
+  3: { name: 'Lisa Rodriguez', email: 'lisa.rodriguez@turbovets.com' },
+  4: { name: 'Emily Davis', email: 'emily.davis@turbovets.com' },
+  5: { name: 'James Wilson', email: 'james.wilson@turbovets.com' },
+};
+
+// Mock user role assignments to organizations
+const USER_ROLE_ASSIGNMENTS: {
+  [userId: number]: { role: string; organizationId: number };
+} = {
+  0: { role: 'Owner', organizationId: 1 }, // Owner - can access all organizations
+  1: { role: 'Admin', organizationId: 1 }, // Sarah - Admin of main org
+  2: { role: 'Admin', organizationId: 1 }, // Michael - Admin of main org
+  3: { role: 'Viewer', organizationId: 1 }, // Lisa - Viewer of main org
+  4: { role: 'Admin', organizationId: 2 }, // Emily - Admin of north branch
+  5: { role: 'Admin', organizationId: 3 }, // James - Admin of south branch
+};
+
 // Helper function to get the next available task ID for an organization
 function getNextTaskId(organizationId: number): number {
   const orgTasks = ORGANIZATION_TASKS[organizationId] || [];
@@ -160,18 +418,44 @@ export class ApiService {
   private apiUrl = 'http://localhost:3001/api';
   private mockMode = true; // Set to false to use real backend
   private currentOrganizationId = 1; // Default organization
+  private currentUserRole: string = 'Admin'; // Mock current user role - Admin by default
+  private currentUserId: number = 1; // Will be properly set during app initialization
 
   constructor(private http: HttpClient) {
+    // Check localStorage for saved role and set appropriate user ID
+    const savedRole = localStorage.getItem('userRole') as string;
+    if (savedRole) {
+      this.currentUserRole = savedRole;
+      // Set appropriate user ID based on role
+      const roleUserIds = { Owner: 0, Admin: 1, Viewer: 3 };
+      this.currentUserId =
+        roleUserIds[savedRole as keyof typeof roleUserIds] || 1;
+    }
+
     console.log('[API SERVICE] Initialized with:');
     console.log('  - API URL:', this.apiUrl);
     console.log('  - Mock Mode:', this.mockMode);
     console.log('  - Current Organization ID:', this.currentOrganizationId);
+    console.log('  - Current User Role:', this.currentUserRole);
+    console.log('  - Current User ID:', this.currentUserId);
   }
 
-  // Organization management
+  // Organization management with access control
   setCurrentOrganization(organizationId: number): void {
     console.log(
-      '[API SERVICE] Setting current organization to:',
+      '[API SERVICE] Attempting to set current organization to:',
+      organizationId
+    );
+
+    // Check if user has access to this organization
+    if (!this.canAccessOrganization(organizationId)) {
+      const error = `Access denied: ${this.currentUserRole} users can only access their assigned organization`;
+      console.error('[API SERVICE]', error);
+      throw new Error(error);
+    }
+
+    console.log(
+      '[API SERVICE] Access granted, setting current organization to:',
       organizationId
     );
     this.currentOrganizationId = organizationId;
@@ -181,13 +465,65 @@ export class ApiService {
     return this.currentOrganizationId;
   }
 
+  // Set current user role (for testing role switching)
+  setCurrentUserRole(role: string, userId?: number): void {
+    console.log('[API SERVICE] Setting current user role to:', role);
+    this.currentUserRole = role;
+
+    if (userId) {
+      this.currentUserId = userId;
+      // Note: We do NOT automatically change organization based on user assignment
+      // The organization should be set explicitly via setCurrentOrganization()
+      // This allows dynamic role switching while preserving current organization context
+      console.log(
+        '[API SERVICE] Updated user ID to:',
+        userId,
+        'keeping current organization:',
+        this.currentOrganizationId
+      );
+    }
+  }
+
+  getCurrentUserRole(): string {
+    return this.currentUserRole;
+  }
+
+  // Check if current user can access a specific organization
+  canAccessOrganization(organizationId: number): boolean {
+    if (this.currentUserRole === 'Owner') {
+      return true; // Owners can access any organization
+    }
+
+    // Admin and Viewer users can only access their currently assigned organization
+    // (the one that was active when they switched to their role)
+    return this.currentOrganizationId === organizationId;
+  }
+
+  // Get organizations that current user can access
+  getAccessibleOrganizations(): Organization[] {
+    if (this.currentUserRole === 'Owner') {
+      return [...MOCK_ORGANIZATIONS]; // Owners see all organizations
+    }
+
+    // Admin and Viewer users only see their currently assigned organization
+    return MOCK_ORGANIZATIONS.filter(
+      (org) => org.id === this.currentOrganizationId
+    );
+  }
+
   // Organization endpoints
   getOrganizations(): Observable<Organization[]> {
     console.log('[API SERVICE] getOrganizations() called');
     if (this.mockMode) {
       console.log('[API SERVICE] Using mock organizations');
-      return of([...MOCK_ORGANIZATIONS]).pipe(
-        tap(() => console.log('[API SERVICE] Returning mock organizations')),
+      const accessibleOrgs = this.getAccessibleOrganizations();
+      return of(accessibleOrgs).pipe(
+        tap(() =>
+          console.log(
+            '[API SERVICE] Returning accessible organizations:',
+            accessibleOrgs
+          )
+        ),
         delay(300)
       );
     }
@@ -231,15 +567,23 @@ export class ApiService {
     return this.http.post<Organization>(`${this.apiUrl}/organizations`, org);
   }
 
-  // Task endpoints (updated to include organization context)
+  // Task endpoints with organization access control
   getTasks(): Observable<Task[]> {
     console.log(
       '[API SERVICE] getTasks() called for organization:',
       this.currentOrganizationId
     );
+
+    // Check access before returning tasks
+    if (!this.canAccessOrganization(this.currentOrganizationId)) {
+      console.error('[API SERVICE] Access denied to organization tasks');
+      throw new Error(
+        `Access denied: Cannot view tasks from organization ${this.currentOrganizationId}`
+      );
+    }
+
     if (this.mockMode) {
       console.log('[API SERVICE] Using mock data');
-      // Filter tasks by organization (for mock, we'll return all for now)
       return of(ORGANIZATION_TASKS[this.currentOrganizationId] || []).pipe(
         tap(() =>
           console.log(
@@ -284,6 +628,88 @@ export class ApiService {
     );
   }
 
+  // Helper method to create audit log entries
+  private addAuditLog(action: string, taskId: number, details: string): void {
+    let userId: number;
+    let userName: string;
+    let organizationId: number;
+    let organizationName: string;
+
+    if (this.currentUserRole === 'Owner') {
+      // Owner Rule: Use ID 0, name "Owner", organization "Owner" with ID 0
+      userId = 0;
+      userName = 'Owner';
+      organizationId = 0;
+      organizationName = 'Owner';
+    } else if (this.currentUserRole === 'Admin') {
+      // Admin Rule: Use admin user ID and organization details from currently selected organization
+      const currentOrg = MOCK_ORGANIZATIONS.find(
+        (org) => org.id === this.currentOrganizationId
+      );
+
+      // Get the admin user for the current organization from USER_ROLE_ASSIGNMENTS
+      const adminUserEntry = Object.entries(USER_ROLE_ASSIGNMENTS).find(
+        ([, assignment]) =>
+          assignment.role === 'Admin' &&
+          assignment.organizationId === this.currentOrganizationId
+      );
+
+      if (adminUserEntry) {
+        const adminUserId = parseInt(adminUserEntry[0]);
+        const adminUserInfo = MOCK_USERS[adminUserId];
+
+        userId = adminUserId;
+        userName = adminUserInfo?.name || `Admin User ${adminUserId}`;
+        organizationId = this.currentOrganizationId;
+        organizationName = currentOrg?.name || 'Unknown Organization';
+      } else {
+        // Fallback if no admin found for current organization
+        userId = this.currentUserId;
+        userName =
+          MOCK_USERS[this.currentUserId]?.name || `User ${this.currentUserId}`;
+        organizationId = this.currentOrganizationId;
+        organizationName = currentOrg?.name || 'Unknown Organization';
+      }
+    } else {
+      // For other roles (Viewer), use current user context
+      const currentOrg = MOCK_ORGANIZATIONS.find(
+        (org) => org.id === this.currentOrganizationId
+      );
+
+      userId = this.currentUserId;
+      userName =
+        MOCK_USERS[this.currentUserId]?.name || `User ${this.currentUserId}`;
+      organizationId = this.currentOrganizationId;
+      organizationName = currentOrg?.name || 'Unknown Organization';
+    }
+
+    // Get next audit log ID
+    const allAuditLogs = Object.values(ORGANIZATION_AUDIT_LOGS).flat();
+    const nextId = Math.max(...allAuditLogs.map((log) => log.id), 0) + 1;
+
+    const auditLog: AuditLog = {
+      id: nextId,
+      userId,
+      action,
+      taskId,
+      details,
+      timestamp: new Date().toISOString(),
+      organizationId,
+      organizationName,
+    };
+
+    // Add to appropriate organization's audit logs
+    if (!ORGANIZATION_AUDIT_LOGS[organizationId]) {
+      ORGANIZATION_AUDIT_LOGS[organizationId] = [];
+    }
+    ORGANIZATION_AUDIT_LOGS[organizationId].unshift(auditLog); // Add to beginning for newest first
+
+    console.log('[API SERVICE] Added audit log:', auditLog);
+    console.log(
+      `[API SERVICE] Audit rule applied - Role: ${this.currentUserRole}, User ID: ${userId}, User Name: ${userName}, Org: ${organizationName} (${organizationId})`
+    );
+  }
+
   createTask(task: Partial<Task>): Observable<Task> {
     console.log(
       '[API SERVICE] createTask() called for organization:',
@@ -301,10 +727,16 @@ export class ApiService {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
+
+      // Add new task to the beginning of the list so it appears at the top
       ORGANIZATION_TASKS[this.currentOrganizationId] = [
-        ...(ORGANIZATION_TASKS[this.currentOrganizationId] || []),
         newTask,
+        ...(ORGANIZATION_TASKS[this.currentOrganizationId] || []),
       ];
+
+      // Add audit log
+      this.addAuditLog('CREATE', newTask.id, `Created task: ${newTask.title}`);
+
       console.log('[API SERVICE] Created new mock task:', newTask);
       return of(newTask).pipe(delay(300));
     }
@@ -343,6 +775,27 @@ export class ApiService {
         newOrgTasks[index] = updatedTask;
         ORGANIZATION_TASKS[this.currentOrganizationId] = newOrgTasks;
 
+        // Add audit log
+        const changes = [];
+        if (task.title && task.title !== originalTask.title) {
+          changes.push(`title from "${originalTask.title}" to "${task.title}"`);
+        }
+        if (task.status && task.status !== originalTask.status) {
+          changes.push(`status from ${originalTask.status} to ${task.status}`);
+        }
+        if (
+          task.description !== undefined &&
+          task.description !== originalTask.description
+        ) {
+          changes.push(`description`);
+        }
+        const details =
+          changes.length > 0
+            ? `Updated task ${changes.join(', ')}: ${updatedTask.title}`
+            : `Updated task: ${updatedTask.title}`;
+
+        this.addAuditLog('UPDATE', updatedTask.id, details);
+
         console.log('[API SERVICE] Updated mock task:', updatedTask);
         console.log(
           '[API SERVICE] Updated organization tasks:',
@@ -375,6 +828,14 @@ export class ApiService {
       );
       if (task) {
         task.order = order;
+
+        // Add audit log
+        this.addAuditLog(
+          'UPDATE',
+          task.id,
+          `Updated task order: ${task.title}`
+        );
+
         console.log('[API SERVICE] Updated mock task order:', { id, order });
         return of({ ...task }).pipe(delay(300));
       }
@@ -395,8 +856,16 @@ export class ApiService {
     );
     if (this.mockMode) {
       const orgTasks = ORGANIZATION_TASKS[this.currentOrganizationId] || [];
+      const taskToDelete = orgTasks.find((task) => task.id === id);
       const index = orgTasks.findIndex((t) => t.id === id);
-      if (index !== -1) {
+      if (index !== -1 && taskToDelete) {
+        // Add audit log before deleting
+        this.addAuditLog(
+          'DELETE',
+          taskToDelete.id,
+          `Deleted task: ${taskToDelete.title}`
+        );
+
         // Create a new array without the deleted task instead of using splice
         const newOrgTasks = orgTasks.filter((task) => task.id !== id);
         ORGANIZATION_TASKS[this.currentOrganizationId] = newOrgTasks;
@@ -410,17 +879,57 @@ export class ApiService {
     );
   }
 
-  // Audit log endpoints
+  // Audit log endpoints with enhanced organization info
   getAuditLogs(): Observable<AuditLog[]> {
     console.log(
       '[API SERVICE] getAuditLogs() called for organization:',
       this.currentOrganizationId
     );
+
+    // Check access before returning audit logs
+    if (!this.canAccessOrganization(this.currentOrganizationId)) {
+      console.error('[API SERVICE] Access denied to organization audit logs');
+      throw new Error(
+        `Access denied: Cannot view audit logs from organization ${this.currentOrganizationId}`
+      );
+    }
+
     if (this.mockMode) {
-      return of([]).pipe(delay(300));
+      // Return audit logs for the current organization
+      const orgAuditLogs =
+        ORGANIZATION_AUDIT_LOGS[this.currentOrganizationId] || [];
+      console.log('[API SERVICE] Returning mock audit logs:', orgAuditLogs);
+      return of(orgAuditLogs).pipe(delay(300));
     }
     return this.http.get<AuditLog[]>(
       `${this.apiUrl}/audit-logs?organizationId=${this.currentOrganizationId}`
     );
+  }
+
+  // Get user information for audit log display
+  getUserInfo(userId: number): { name: string; email: string } | null {
+    return MOCK_USERS[userId] || null;
+  }
+
+  // Get all audit logs (Owner only)
+  getAllAuditLogs(): Observable<AuditLog[]> {
+    console.log('[API SERVICE] getAllAuditLogs() called - Owner access');
+
+    if (this.currentUserRole !== 'Owner') {
+      console.error(
+        '[API SERVICE] Access denied - Only Owners can view all audit logs'
+      );
+      throw new Error(
+        'Access denied: Only Owners can view system-wide audit logs'
+      );
+    }
+
+    if (this.mockMode) {
+      // Return all audit logs from all organizations for Owner role
+      const allLogs = Object.values(ORGANIZATION_AUDIT_LOGS).flat();
+      console.log('[API SERVICE] Returning all audit logs:', allLogs);
+      return of(allLogs).pipe(delay(300));
+    }
+    return this.http.get<AuditLog[]>(`${this.apiUrl}/audit-logs/all`);
   }
 }

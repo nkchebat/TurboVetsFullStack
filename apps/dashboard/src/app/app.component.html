@@ -2,25 +2,75 @@
   <nav class="bg-white dark:bg-gray-800 shadow">
     <div class="max-w-7xl mx-auto px-4">
       <div class="flex justify-between h-16">
-        <div class="flex">
+        <div class="flex items-center">
+          <!-- Mobile menu button -->
+          <button
+            class="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+            (click)="mobileMenuOpen = !mobileMenuOpen"
+            [attr.aria-expanded]="mobileMenuOpen"
+          >
+            <span class="sr-only">Open main menu</span>
+            <!-- Hamburger icon -->
+            <svg
+              class="h-6 w-6"
+              [class.hidden]="mobileMenuOpen"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+            <!-- Close icon -->
+            <svg
+              class="h-6 w-6"
+              [class.hidden]="!mobileMenuOpen"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+
           <!-- Logo and Organization Dropdown -->
-          <div class="flex-shrink-0 flex items-center">
-            <img
-              src="assets/TV_logo.jpeg"
-              alt="TurboVets Logo"
-              class="h-8 w-auto mr-3"
-            />
-            <h1 class="text-xl font-bold text-gray-800 dark:text-white mr-4">
-              TurboVets
-            </h1>
-            <!-- Organization Dropdown -->
+          <div class="flex-shrink-0 flex items-center ml-2 sm:ml-0">
+            <a
+              routerLink="/tasks"
+              class="flex items-center cursor-pointer hover:opacity-80 transition-opacity duration-200"
+              title="Go to Tasks"
+            >
+              <img
+                src="assets/favicon_io/android-chrome-192x192.png"
+                alt="TurboTask Logo"
+                class="h-8 w-auto mr-2 sm:mr-3"
+              />
+              <h1
+                class="text-lg sm:text-xl font-bold text-gray-800 dark:text-white mr-2 sm:mr-4"
+              >
+                TurboTask
+              </h1>
+            </a>
+            <!-- Organization Dropdown - Hidden on very small screens -->
             <div
-              class="ml-4 pl-4 border-l border-gray-300 dark:border-gray-600"
+              class="hidden xs:block ml-2 sm:ml-4 pl-2 sm:pl-4 border-l border-gray-300 dark:border-gray-600"
             >
               <app-organization-dropdown></app-organization-dropdown>
             </div>
           </div>
-          <!-- Navigation Links -->
+
+          <!-- Desktop Navigation Links -->
           <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
             <a
               routerLink="/tasks"
@@ -40,7 +90,7 @@
         </div>
 
         <!-- Role Dropdown and Theme Toggle in top right -->
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 sm:gap-3">
           <app-role-dropdown></app-role-dropdown>
           <!-- Keyboard Shortcuts Button -->
           <button
@@ -65,10 +115,41 @@
           <app-theme-toggle></app-theme-toggle>
         </div>
       </div>
+
+      <!-- Mobile menu -->
+      <div
+        class="sm:hidden"
+        [class.hidden]="!mobileMenuOpen"
+        (click)="mobileMenuOpen = false"
+      >
+        <div class="pt-2 pb-3 space-y-1">
+          <!-- Organization Dropdown for mobile - show if hidden above -->
+          <div
+            class="xs:hidden px-3 py-2 border-b border-gray-200 dark:border-gray-700"
+          >
+            <app-organization-dropdown></app-organization-dropdown>
+          </div>
+          <!-- Mobile Navigation Links -->
+          <a
+            routerLink="/tasks"
+            routerLinkActive="bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200"
+            class="bg-transparent border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 dark:hover:bg-gray-700 dark:hover:text-gray-200 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
+          >
+            Tasks
+          </a>
+          <a
+            routerLink="/audit-log"
+            routerLinkActive="bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200"
+            class="bg-transparent border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 dark:hover:bg-gray-700 dark:hover:text-gray-200 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
+          >
+            Audit Log
+          </a>
+        </div>
+      </div>
     </div>
   </nav>
 
-  <main class="container mx-auto px-4 py-8">
+  <main class="container mx-auto px-4 py-4 sm:py-8">
     <router-outlet></router-outlet>
   </main>
 
