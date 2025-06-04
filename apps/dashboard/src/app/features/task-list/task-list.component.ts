@@ -7,6 +7,7 @@ import { Store } from '@ngrx/store';
 import { Observable, combineLatest, Subscription } from 'rxjs';
 import { map, startWith, take, tap } from 'rxjs/operators';
 import { Task, TaskCategory } from '../../core/api.service';
+import { KeyboardShortcutsService } from '../../core/keyboard-shortcuts.service';
 import * as TaskActions from '../../state/actions/task.actions';
 import {
   selectAllTasks,
@@ -18,6 +19,7 @@ import { moveItemInArray } from '@angular/cdk/drag-drop';
 import { DeleteConfirmationDialogComponent } from '../../shared/components/delete-confirmation-dialog.component';
 import { QuickDeleteWarningDialogComponent } from '../../shared/components/quick-delete-warning-dialog.component';
 import { TaskCreationDialogComponent } from '../../shared/components/task-creation-dialog.component';
+import { TaskEditDialogComponent } from '../../shared/components/task-edit-dialog.component';
 
 @Component({
   selector: 'app-task-list',
@@ -31,12 +33,14 @@ import { TaskCreationDialogComponent } from '../../shared/components/task-creati
           <!-- Search and Filters -->
           <div class="flex gap-2">
             <input
+              #searchInput
               type="text"
               [formControl]="searchControl"
               placeholder="Search tasks..."
               class="form-input w-48 dark:bg-gray-700 dark:text-white dark:border-gray-600"
             />
             <select
+              #categorySelect
               [formControl]="categoryFilter"
               class="form-input w-32 dark:bg-gray-700 dark:text-white dark:border-gray-600"
             >
@@ -48,6 +52,7 @@ import { TaskCreationDialogComponent } from '../../shared/components/task-creati
               <option value="Other">Other</option>
             </select>
             <select
+              #statusSelect
               [formControl]="statusFilter"
               class="form-input w-32 dark:bg-gray-700 dark:text-white dark:border-gray-600"
             >
@@ -155,13 +160,16 @@ import { TaskCreationDialogComponent } from '../../shared/components/task-creati
         class="grid gap-4"
       >
         <div
-          *ngFor="let task of filteredTasks$ | async"
+          *ngFor="let task of filteredTasks$ | async; let i = index"
           cdkDrag
           class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow cursor-move"
           [class.border-l-4]="true"
           [class.border-yellow-500]="task.status === 'TODO'"
           [class.border-blue-500]="task.status === 'IN_PROGRESS'"
           [class.border-green-500]="task.status === 'DONE'"
+          [class.ring-2]="selectedTaskIndex === i"
+          [class.ring-blue-500]="selectedTaskIndex === i"
+          [class.ring-opacity-50]="selectedTaskIndex === i"
         >
           <div class="flex justify-between items-start">
             <div>
@@ -196,7 +204,7 @@ import { TaskCreationDialogComponent } from '../../shared/components/task-creati
             <div *ngIf="isOwnerOrAdmin$ | async" class="flex gap-2">
               <button
                 class="btn btn-primary text-sm"
-                (click)="onEditTask(task.id)"
+                (click)="onEditTask(task)"
               >
                 Edit
               </button>
@@ -234,7 +242,6 @@ import { TaskCreationDialogComponent } from '../../shared/components/task-creati
       <app-delete-confirmation-dialog
         [isOpen]="showDeleteDialog"
         [taskTitle]="taskToDelete?.title || ''"
-        [taskStatus]="taskToDelete?.status || 'TODO'"
         (confirm)="onConfirmDelete()"
         (cancel)="onCancelDelete()"
       ></app-delete-confirmation-dialog>
@@ -252,6 +259,14 @@ import { TaskCreationDialogComponent } from '../../shared/components/task-creati
         (confirm)="onConfirmCreateTask($event)"
         (cancel)="onCancelCreateTask()"
       ></app-task-creation-dialog>
+
+      <!-- Task Edit Dialog -->
+      <app-task-edit-dialog
+        [isOpen]="showEditTaskDialog"
+        [task]="taskToEdit"
+        (confirm)="onConfirmEditTask($event)"
+        (cancel)="onCancelEditTask()"
+      ></app-task-edit-dialog>
     </div>
   `,
   styles: [
@@ -280,6 +295,7 @@ import { TaskCreationDialogComponent } from '../../shared/components/task-creati
     DeleteConfirmationDialogComponent,
     QuickDeleteWarningDialogComponent,
     TaskCreationDialogComponent,
+    TaskEditDialogComponent,
   ],
 })
 export class TaskListComponent implements OnInit, OnDestroy {
@@ -304,11 +320,23 @@ export class TaskListComponent implements OnInit, OnDestroy {
   // Task creation dialog state
   showCreateTaskDialog = false;
 
+  // Task edit dialog state
+  showEditTaskDialog = false;
+  taskToEdit: Task | null = null;
+
+  // Task selection for keyboard navigation
+  selectedTaskIndex = -1;
+  filteredTasksArray: Task[] = [];
+
   searchControl = new FormControl('');
   categoryFilter = new FormControl<TaskCategory | ''>('');
   statusFilter = new FormControl<'TODO' | 'IN_PROGRESS' | 'DONE' | ''>('');
 
-  constructor(private store: Store, private router: Router) {
+  constructor(
+    private store: Store,
+    private router: Router,
+    private keyboardShortcutsService: KeyboardShortcutsService
+  ) {
     this.tasks$ = this.store.select(selectAllTasks).pipe(
       tap((tasks) => {
         console.log('Tasks from store:', tasks);
@@ -380,6 +408,24 @@ export class TaskListComponent implements OnInit, OnDestroy {
     // Load quick delete preference from localStorage
     this.loadQuickDeletePreference();
 
+    // Subscribe to keyboard shortcuts
+    this.subscriptions.add(
+      this.keyboardShortcutsService.shortcut$.subscribe((action) => {
+        this.handleKeyboardShortcut(action);
+      })
+    );
+
+    // Subscribe to filtered tasks to maintain task array for navigation
+    this.subscriptions.add(
+      this.filteredTasks$.subscribe((tasks) => {
+        this.filteredTasksArray = tasks;
+        // Reset selection if it's out of bounds
+        if (this.selectedTaskIndex >= tasks.length) {
+          this.selectedTaskIndex = -1;
+        }
+      })
+    );
+
     // Add a small delay to ensure store is ready
     setTimeout(() => {
       this.store.dispatch(TaskActions.loadTasks());
@@ -409,9 +455,10 @@ export class TaskListComponent implements OnInit, OnDestroy {
     this.showCreateTaskDialog = true;
   }
 
-  onEditTask(id: number): void {
-    console.log('Navigating to edit task:', id);
-    this.router.navigate([`/tasks/${id}/edit`]);
+  onEditTask(task: Task): void {
+    console.log('Opening edit task dialog for task:', task);
+    this.taskToEdit = task;
+    this.showEditTaskDialog = true;
   }
 
   onDeleteTask(task: Task): void {
@@ -477,23 +524,13 @@ export class TaskListComponent implements OnInit, OnDestroy {
 
     // Get the current tasks array from the observable
     this.filteredTasks$.pipe(take(1)).subscribe((tasks) => {
-      if (tasks && tasks.length > 0) {
-        // Create a copy of the tasks array
-        const reorderedTasks = [...tasks];
+      if (event.previousIndex !== event.currentIndex) {
+        const tasksCopy = [...tasks];
+        moveItemInArray(tasksCopy, event.previousIndex, event.currentIndex);
 
-        // Move the item to its new position
-        moveItemInArray(
-          reorderedTasks,
-          event.previousIndex,
-          event.currentIndex
-        );
-
-        console.log('Reordered tasks:', reorderedTasks);
-
-        // Dispatch the reorder action to update the state
-        this.store.dispatch(
-          TaskActions.reorderTasks({ tasks: reorderedTasks })
-        );
+        // Update the order in the store
+        this.store.dispatch(TaskActions.reorderTasks({ tasks: tasksCopy }));
+        console.log('New task order dispatched:', tasksCopy);
       }
     });
   }
@@ -512,5 +549,172 @@ export class TaskListComponent implements OnInit, OnDestroy {
   onCancelCreateTask(): void {
     console.log('Task creation cancelled');
     this.showCreateTaskDialog = false;
+  }
+
+  onConfirmEditTask(editData: {
+    id: number;
+    task: {
+      title: string;
+      description: string;
+      category: TaskCategory;
+      status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+    };
+  }): void {
+    console.log('Updating task:', editData);
+    this.store.dispatch(TaskActions.updateTask(editData));
+    this.showEditTaskDialog = false;
+    this.taskToEdit = null;
+  }
+
+  onCancelEditTask(): void {
+    console.log('Task edit cancelled');
+    this.showEditTaskDialog = false;
+    this.taskToEdit = null;
+  }
+
+  private handleKeyboardShortcut(action: string): void {
+    switch (action) {
+      case 'create-task':
+        this.onCreateTask();
+        break;
+      case 'focus-search':
+        this.focusSearchInput();
+        break;
+      case 'cycle-category-filters':
+        this.cycleCategoryFilters();
+        break;
+      case 'cycle-status-filters':
+        this.cycleStatusFilters();
+        break;
+      case 'toggle-quick-delete':
+        this.toggleQuickDelete();
+        break;
+      case 'navigate-up':
+        this.navigateUp();
+        break;
+      case 'navigate-down':
+        this.navigateDown();
+        break;
+      case 'edit-task':
+        this.editSelectedTask();
+        break;
+      case 'delete-task':
+        this.deleteSelectedTask();
+        break;
+      case 'close-dialogs':
+        this.closeAllDialogs();
+        break;
+    }
+  }
+
+  private focusSearchInput(): void {
+    const searchInput = document.querySelector(
+      'input[placeholder="Search tasks..."]'
+    ) as HTMLInputElement;
+    if (searchInput) {
+      searchInput.focus();
+      searchInput.select();
+    }
+  }
+
+  private cycleCategoryFilters(): void {
+    const categoryOptions: (TaskCategory | '')[] = [
+      '',
+      'Work',
+      'Personal',
+      'Shopping',
+      'Health',
+      'Other',
+    ];
+
+    const currentCategoryIndex = categoryOptions.indexOf(
+      this.categoryFilter.value as TaskCategory | ''
+    );
+    const nextCategoryIndex =
+      (currentCategoryIndex + 1) % categoryOptions.length;
+    this.categoryFilter.setValue(categoryOptions[nextCategoryIndex]);
+  }
+
+  private cycleStatusFilters(): void {
+    const statusOptions: ('TODO' | 'IN_PROGRESS' | 'DONE' | '')[] = [
+      '',
+      'TODO',
+      'IN_PROGRESS',
+      'DONE',
+    ];
+
+    const currentStatusIndex = statusOptions.indexOf(
+      this.statusFilter.value as 'TODO' | 'IN_PROGRESS' | 'DONE' | ''
+    );
+    const nextStatusIndex = (currentStatusIndex + 1) % statusOptions.length;
+    this.statusFilter.setValue(statusOptions[nextStatusIndex]);
+  }
+
+  private toggleQuickDelete(): void {
+    if (!this.quickDeleteEnabled) {
+      this.showQuickDeleteWarning = true;
+    } else {
+      this.quickDeleteEnabled = false;
+      this.saveQuickDeletePreference();
+    }
+  }
+
+  private navigateUp(): void {
+    if (this.filteredTasksArray.length === 0) return;
+
+    if (this.selectedTaskIndex <= 0) {
+      this.selectedTaskIndex = this.filteredTasksArray.length - 1;
+    } else {
+      this.selectedTaskIndex--;
+    }
+    this.scrollToSelectedTask();
+  }
+
+  private navigateDown(): void {
+    if (this.filteredTasksArray.length === 0) return;
+
+    if (this.selectedTaskIndex >= this.filteredTasksArray.length - 1) {
+      this.selectedTaskIndex = 0;
+    } else {
+      this.selectedTaskIndex++;
+    }
+    this.scrollToSelectedTask();
+  }
+
+  private scrollToSelectedTask(): void {
+    const taskElements = document.querySelectorAll('[cdkDrag]');
+    if (taskElements[this.selectedTaskIndex]) {
+      taskElements[this.selectedTaskIndex].scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }
+
+  private editSelectedTask(): void {
+    if (
+      this.selectedTaskIndex >= 0 &&
+      this.selectedTaskIndex < this.filteredTasksArray.length
+    ) {
+      const selectedTask = this.filteredTasksArray[this.selectedTaskIndex];
+      this.onEditTask(selectedTask);
+    }
+  }
+
+  private deleteSelectedTask(): void {
+    if (
+      this.selectedTaskIndex >= 0 &&
+      this.selectedTaskIndex < this.filteredTasksArray.length
+    ) {
+      const selectedTask = this.filteredTasksArray[this.selectedTaskIndex];
+      this.onDeleteTask(selectedTask);
+    }
+  }
+
+  private closeAllDialogs(): void {
+    this.showDeleteDialog = false;
+    this.showQuickDeleteWarning = false;
+    this.showCreateTaskDialog = false;
+    this.showEditTaskDialog = false;
   }
 }

@@ -22,14 +22,6 @@ export const routes: Routes = [
       ),
   },
   {
-    path: 'tasks/:id/edit',
-    loadComponent: () =>
-      import('./features/task-form/task-form.component').then(
-        (m) => m.TaskFormComponent
-      ),
-    canActivate: [adminGuard],
-  },
-  {
     path: 'audit-log',
     loadComponent: () =>
       import('./features/audit-log/audit-log.component').then(

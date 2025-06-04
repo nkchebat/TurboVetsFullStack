@@ -3,16 +3,24 @@
     <div class="max-w-7xl mx-auto px-4">
       <div class="flex justify-between h-16">
         <div class="flex">
+          <!-- Logo and Organization Dropdown -->
           <div class="flex-shrink-0 flex items-center">
             <img
               src="assets/TV_logo.jpeg"
               alt="TurboVets Logo"
               class="h-8 w-auto mr-3"
             />
-            <h1 class="text-xl font-bold text-gray-800 dark:text-white">
+            <h1 class="text-xl font-bold text-gray-800 dark:text-white mr-4">
               TurboVets
             </h1>
+            <!-- Organization Dropdown -->
+            <div
+              class="ml-4 pl-4 border-l border-gray-300 dark:border-gray-600"
+            >
+              <app-organization-dropdown></app-organization-dropdown>
+            </div>
           </div>
+          <!-- Navigation Links -->
           <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
             <a
               routerLink="/tasks"
@@ -34,6 +42,26 @@
         <!-- Role Dropdown and Theme Toggle in top right -->
         <div class="flex items-center gap-3">
           <app-role-dropdown></app-role-dropdown>
+          <!-- Keyboard Shortcuts Button -->
+          <button
+            (click)="showKeyboardShortcuts = true"
+            class="p-2 text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+            title="Keyboard Shortcuts ({{ isMac ? '⌘' : 'Ctrl' }} + K)"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </button>
           <app-theme-toggle></app-theme-toggle>
         </div>
       </div>
@@ -43,4 +71,11 @@
   <main class="container mx-auto px-4 py-8">
     <router-outlet></router-outlet>
   </main>
+
+  <!-- Keyboard Shortcuts Guide -->
+  <app-keyboard-shortcuts-guide
+    [isVisible]="showKeyboardShortcuts"
+    (visibilityChange)="showKeyboardShortcuts = false"
+  >
+  </app-keyboard-shortcuts-guide>
 </div>
