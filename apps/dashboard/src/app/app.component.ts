@@ -1,35 +1,37 @@
 import { Component, OnInit } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { Observable } from 'rxjs';
-import { selectIsOwnerOrAdmin, selectUserRole } from './state/selectors';
-import { UserRole } from './core/auth.service';
 import { ThemeService } from './core/theme.service';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { FormsModule } from '@angular/forms';
 import * as AuthActions from './state/actions/auth.actions';
+import { RoleDropdownComponent } from './shared/components/role-dropdown.component';
+import { ThemeToggleComponent } from './shared/components/theme-toggle.component';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss'],
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [
+    CommonModule,
+    RouterModule,
+    RoleDropdownComponent,
+    ThemeToggleComponent,
+  ],
 })
 export class AppComponent implements OnInit {
-  isOwnerOrAdmin$: Observable<boolean>;
-  userRole$: Observable<UserRole>;
+  title = 'dashboard';
 
-  constructor(private store: Store, public themeService: ThemeService) {
-    this.isOwnerOrAdmin$ = this.store.select(selectIsOwnerOrAdmin);
-    this.userRole$ = this.store.select(selectUserRole);
+  constructor(private store: Store, private themeService: ThemeService) {
+    console.log('AppComponent - ThemeService injected:', this.themeService);
   }
 
   ngOnInit() {
     console.log('AppComponent initialized');
+    console.log(
+      'AppComponent - Current theme:',
+      this.themeService.getCurrentTheme()
+    );
     this.store.dispatch(AuthActions.initializeAuth());
-  }
-
-  onRoleChange(role: UserRole): void {
-    this.store.dispatch(AuthActions.setUserRole({ role }));
   }
 }

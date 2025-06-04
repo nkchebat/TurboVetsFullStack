@@ -61,3 +61,19 @@ export const deleteTaskFailure = createAction(
   '[Task] Delete Task Failure',
   props<{ error: string }>()
 );
+
+// Reorder Tasks
+export const reorderTasks = createAction(
+  '[Task] Reorder Tasks',
+  props<{ tasks: Task[] }>()
+);
+
+export const reorderTasksSuccess = createAction(
+  '[Task] Reorder Tasks Success',
+  props<{ tasks: Task[] }>()
+);
+
+export const reorderTasksFailure = createAction(
+  '[Task] Reorder Tasks Failure',
+  props<{ error: string }>()
+);

@@ -95,6 +95,26 @@ export class TaskEffects {
     )
   );
 
+  reorderTasks$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(TaskActions.reorderTasks),
+      switchMap(({ tasks }) => {
+        console.log('[EFFECT] Reordering tasks:', tasks);
+        // For now, we'll just return success without calling the API since the order field isn't fully implemented on the backend
+        // In a real application, you might want to call an API endpoint to persist the new order
+        return of(TaskActions.reorderTasksSuccess({ tasks })).pipe(
+          catchError((error) =>
+            of(
+              TaskActions.reorderTasksFailure({
+                error: error.message || 'Unknown error',
+              })
+            )
+          )
+        );
+      })
+    )
+  );
+
   constructor() {
     console.log('[EFFECT] TaskEffects constructor called');
     console.log('[EFFECT] actions$ initialized:', !!this.actions$);

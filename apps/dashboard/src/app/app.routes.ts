@@ -15,26 +15,11 @@ const adminGuard = () => {
 export const routes: Routes = [
   { path: '', redirectTo: '/tasks', pathMatch: 'full' },
   {
-    path: 'role-switcher',
-    loadComponent: () =>
-      import('./features/role-switcher/role-switcher.component').then(
-        (m) => m.RoleSwitcherComponent
-      ),
-  },
-  {
     path: 'tasks',
     loadComponent: () =>
       import('./features/task-list/task-list.component').then(
         (m) => m.TaskListComponent
       ),
-  },
-  {
-    path: 'tasks/new',
-    loadComponent: () =>
-      import('./features/task-form/task-form.component').then(
-        (m) => m.TaskFormComponent
-      ),
-    canActivate: [adminGuard],
   },
   {
     path: 'tasks/:id/edit',

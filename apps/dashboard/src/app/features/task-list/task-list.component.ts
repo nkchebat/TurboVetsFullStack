@@ -15,6 +15,9 @@ import {
   selectError,
 } from '../../state/selectors';
 import { moveItemInArray } from '@angular/cdk/drag-drop';
+import { DeleteConfirmationDialogComponent } from '../../shared/components/delete-confirmation-dialog.component';
+import { QuickDeleteWarningDialogComponent } from '../../shared/components/quick-delete-warning-dialog.component';
+import { TaskCreationDialogComponent } from '../../shared/components/task-creation-dialog.component';
 
 @Component({
   selector: 'app-task-list',
@@ -54,6 +57,47 @@ import { moveItemInArray } from '@angular/cdk/drag-drop';
               <option value="DONE">Done</option>
             </select>
           </div>
+
+          <!-- Quick Delete Toggle -->
+          <div *ngIf="isOwnerOrAdmin$ | async" class="flex items-center gap-2">
+            <label
+              class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              <div
+                class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in"
+              >
+                <input
+                  type="checkbox"
+                  [checked]="quickDeleteEnabled"
+                  (click)="onQuickDeleteToggle($event)"
+                  class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                />
+                <label
+                  class="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer"
+                  [class.bg-orange-400]="quickDeleteEnabled"
+                  [class.bg-gray-300]="!quickDeleteEnabled"
+                  [class.dark:bg-gray-600]="!quickDeleteEnabled"
+                ></label>
+              </div>
+              <span class="flex items-center gap-1">
+                <svg
+                  class="w-4 h-4 text-orange-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+                Quick Delete
+              </span>
+            </label>
+          </div>
+
           <button
             *ngIf="isOwnerOrAdmin$ | async"
             class="btn btn-primary"
@@ -157,19 +201,86 @@ import { moveItemInArray } from '@angular/cdk/drag-drop';
                 Edit
               </button>
               <button
-                class="btn btn-danger text-sm"
-                (click)="onDeleteTask(task.id)"
+                class="btn btn-danger text-sm flex items-center gap-1 min-w-fit whitespace-nowrap"
+                (click)="onDeleteTask(task)"
+                [title]="
+                  quickDeleteEnabled
+                    ? 'Delete immediately (Quick Delete enabled)'
+                    : 'Delete with confirmation'
+                "
               >
-                Delete
+                <span>Delete</span>
+                <svg
+                  *ngIf="quickDeleteEnabled"
+                  class="w-3 h-3 text-orange-300 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- Delete Confirmation Dialog -->
+      <app-delete-confirmation-dialog
+        [isOpen]="showDeleteDialog"
+        [taskTitle]="taskToDelete?.title || ''"
+        [taskStatus]="taskToDelete?.status || 'TODO'"
+        (confirm)="onConfirmDelete()"
+        (cancel)="onCancelDelete()"
+      ></app-delete-confirmation-dialog>
+
+      <!-- Quick Delete Warning Dialog -->
+      <app-quick-delete-warning-dialog
+        [isOpen]="showQuickDeleteWarning"
+        (confirm)="onConfirmQuickDeleteWarning()"
+        (cancel)="onCancelQuickDeleteWarning()"
+      ></app-quick-delete-warning-dialog>
+
+      <!-- Task Creation Dialog -->
+      <app-task-creation-dialog
+        [isOpen]="showCreateTaskDialog"
+        (confirm)="onConfirmCreateTask($event)"
+        (cancel)="onCancelCreateTask()"
+      ></app-task-creation-dialog>
     </div>
   `,
+  styles: [
+    `
+      .toggle-checkbox:checked {
+        right: 0;
+        border-color: #f97316;
+        background-color: #f97316;
+      }
+      .toggle-checkbox {
+        transition: all 0.3s ease;
+        top: 0;
+        left: 0;
+      }
+      .toggle-checkbox:checked {
+        transform: translateX(100%);
+        border-color: #f97316;
+      }
+    `,
+  ],
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DragDropModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    DragDropModule,
+    DeleteConfirmationDialogComponent,
+    QuickDeleteWarningDialogComponent,
+    TaskCreationDialogComponent,
+  ],
 })
 export class TaskListComponent implements OnInit, OnDestroy {
   tasks$: Observable<Task[]>;
@@ -181,6 +292,17 @@ export class TaskListComponent implements OnInit, OnDestroy {
   completedTasks$: Observable<number>;
   totalTasks$: Observable<number>;
   private subscriptions: Subscription = new Subscription();
+
+  // Delete dialog state
+  showDeleteDialog = false;
+  taskToDelete: Task | null = null;
+
+  // Quick delete state
+  quickDeleteEnabled = false;
+  showQuickDeleteWarning = false;
+
+  // Task creation dialog state
+  showCreateTaskDialog = false;
 
   searchControl = new FormControl('');
   categoryFilter = new FormControl<TaskCategory | ''>('');
@@ -255,6 +377,9 @@ export class TaskListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     console.log('TaskListComponent initialized - Dispatching loadTasks action');
+    // Load quick delete preference from localStorage
+    this.loadQuickDeletePreference();
+
     // Add a small delay to ensure store is ready
     setTimeout(() => {
       this.store.dispatch(TaskActions.loadTasks());
@@ -265,9 +390,23 @@ export class TaskListComponent implements OnInit, OnDestroy {
     this.subscriptions.unsubscribe();
   }
 
+  private loadQuickDeletePreference(): void {
+    const saved = localStorage.getItem('quickDeleteEnabled');
+    this.quickDeleteEnabled = saved === 'true';
+    console.log('Loaded quick delete preference:', this.quickDeleteEnabled);
+  }
+
+  private saveQuickDeletePreference(): void {
+    localStorage.setItem(
+      'quickDeleteEnabled',
+      this.quickDeleteEnabled.toString()
+    );
+    console.log('Saved quick delete preference:', this.quickDeleteEnabled);
+  }
+
   onCreateTask(): void {
-    console.log('Navigating to create task form');
-    this.router.navigate(['/tasks/new']);
+    console.log('Opening create task dialog');
+    this.showCreateTaskDialog = true;
   }
 
   onEditTask(id: number): void {
@@ -275,13 +414,103 @@ export class TaskListComponent implements OnInit, OnDestroy {
     this.router.navigate([`/tasks/${id}/edit`]);
   }
 
-  onDeleteTask(id: number): void {
-    console.log('Deleting task:', id);
-    this.store.dispatch(TaskActions.deleteTask({ id }));
+  onDeleteTask(task: Task): void {
+    console.log('Delete requested for task:', task);
+
+    if (this.quickDeleteEnabled) {
+      // Quick delete - delete immediately without confirmation
+      console.log('Quick deleting task:', task.id);
+      this.store.dispatch(TaskActions.deleteTask({ id: task.id }));
+    } else {
+      // Normal delete - show confirmation dialog
+      console.log('Showing delete confirmation for task:', task);
+      this.taskToDelete = task;
+      this.showDeleteDialog = true;
+    }
+  }
+
+  onQuickDeleteToggle(event: Event): void {
+    if (!this.quickDeleteEnabled) {
+      // Attempting to enable quick delete - prevent default and show warning first
+      event.preventDefault(); // Only prevent default when showing warning
+      console.log('Attempting to enable quick delete');
+      this.showQuickDeleteWarning = true;
+    } else {
+      // Disabling quick delete - allow normal behavior, no warning needed
+      console.log('Disabling quick delete');
+      this.quickDeleteEnabled = false;
+      this.saveQuickDeletePreference();
+      // Don't prevent default here so the visual state updates
+    }
+  }
+
+  onConfirmQuickDeleteWarning(): void {
+    console.log('Quick delete warning confirmed');
+    this.quickDeleteEnabled = true;
+    this.saveQuickDeletePreference();
+    this.showQuickDeleteWarning = false;
+  }
+
+  onCancelQuickDeleteWarning(): void {
+    console.log('Quick delete warning cancelled');
+    this.showQuickDeleteWarning = false;
+    // Reset the toggle since user cancelled
+    this.quickDeleteEnabled = false;
+  }
+
+  onConfirmDelete(): void {
+    if (this.taskToDelete) {
+      console.log('Deleting task:', this.taskToDelete.id);
+      this.store.dispatch(TaskActions.deleteTask({ id: this.taskToDelete.id }));
+      this.onCancelDelete(); // Close the dialog
+    }
+  }
+
+  onCancelDelete(): void {
+    console.log('Cancelling delete');
+    this.showDeleteDialog = false;
+    this.taskToDelete = null;
   }
 
   onDrop(event: CdkDragDrop<Task[]>): void {
     console.log('Task dropped:', event);
-    // Implementation for drag and drop
+
+    // Get the current tasks array from the observable
+    this.filteredTasks$.pipe(take(1)).subscribe((tasks) => {
+      if (tasks && tasks.length > 0) {
+        // Create a copy of the tasks array
+        const reorderedTasks = [...tasks];
+
+        // Move the item to its new position
+        moveItemInArray(
+          reorderedTasks,
+          event.previousIndex,
+          event.currentIndex
+        );
+
+        console.log('Reordered tasks:', reorderedTasks);
+
+        // Dispatch the reorder action to update the state
+        this.store.dispatch(
+          TaskActions.reorderTasks({ tasks: reorderedTasks })
+        );
+      }
+    });
+  }
+
+  onConfirmCreateTask(taskData: {
+    title: string;
+    description: string;
+    category: TaskCategory;
+    status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+  }): void {
+    console.log('Creating new task:', taskData);
+    this.store.dispatch(TaskActions.createTask({ task: taskData }));
+    this.showCreateTaskDialog = false;
+  }
+
+  onCancelCreateTask(): void {
+    console.log('Task creation cancelled');
+    this.showCreateTaskDialog = false;
   }
 }

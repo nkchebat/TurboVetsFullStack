@@ -4,6 +4,11 @@
       <div class="flex justify-between h-16">
         <div class="flex">
           <div class="flex-shrink-0 flex items-center">
+            <img
+              src="assets/TV_logo.jpeg"
+              alt="TurboVets Logo"
+              class="h-8 w-auto mr-3"
+            />
             <h1 class="text-xl font-bold text-gray-800 dark:text-white">
               TurboVets
             </h1>
@@ -23,14 +28,13 @@
             >
               Audit Log
             </a>
-            <a
-              routerLink="/role-switcher"
-              routerLinkActive="border-indigo-500 text-gray-900 dark:text-white"
-              class="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-gray-200 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-            >
-              Switch Role
-            </a>
           </div>
+        </div>
+
+        <!-- Role Dropdown and Theme Toggle in top right -->
+        <div class="flex items-center gap-3">
+          <app-role-dropdown></app-role-dropdown>
+          <app-theme-toggle></app-theme-toggle>
         </div>
       </div>
     </div>

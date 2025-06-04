@@ -92,5 +92,31 @@ export const taskReducer = createReducer(
       ...state,
       error,
     };
+  }),
+
+  // Reorder Tasks
+  on(TaskActions.reorderTasks, (state) => {
+    console.log('reorderTasks action received - Setting loading state');
+    return {
+      ...state,
+      loading: true,
+      error: null,
+    };
+  }),
+  on(TaskActions.reorderTasksSuccess, (state, { tasks }) => {
+    console.log('reorderTasksSuccess action received with tasks:', tasks);
+    return {
+      ...state,
+      tasks,
+      loading: false,
+    };
+  }),
+  on(TaskActions.reorderTasksFailure, (state, { error }) => {
+    console.log('reorderTasksFailure action received with error:', error);
+    return {
+      ...state,
+      error,
+      loading: false,
+    };
   })
 );

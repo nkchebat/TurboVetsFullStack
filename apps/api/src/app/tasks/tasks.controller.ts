@@ -8,8 +8,14 @@ import {
   Param,
   Logger,
 } from '@nestjs/common';
-import { CreateTaskDto, Task } from '@turbovets/data';
-import { TasksService } from './tasks.service';
+import { TasksService, Task } from './tasks.service';
+
+export interface CreateTaskDto {
+  title: string;
+  description: string;
+  status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
+  category: 'Work' | 'Personal' | 'Shopping' | 'Health' | 'Other';
+}
 
 @Controller('tasks')
 export class TasksController {
