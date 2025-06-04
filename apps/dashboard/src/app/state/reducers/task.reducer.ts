@@ -34,6 +34,7 @@ export const taskReducer = createReducer(
       ...state,
       tasks,
       loading: false,
+      error: null,
     };
   }),
   on(TaskActions.loadTasksFailure, (state, { error }) => {
@@ -52,6 +53,7 @@ export const taskReducer = createReducer(
     return {
       ...state,
       tasks: [...state.tasks, task],
+      error: null,
     };
   }),
   on(TaskActions.createTaskFailure, (state, { error }) => {
@@ -68,6 +70,7 @@ export const taskReducer = createReducer(
     return {
       ...state,
       tasks: state.tasks.map((t) => (t.id === task.id ? task : t)),
+      error: null,
     };
   }),
   on(TaskActions.updateTaskFailure, (state, { error }) => {
@@ -84,6 +87,7 @@ export const taskReducer = createReducer(
     return {
       ...state,
       tasks: state.tasks.filter((task) => task.id !== id),
+      error: null,
     };
   }),
   on(TaskActions.deleteTaskFailure, (state, { error }) => {
@@ -109,6 +113,7 @@ export const taskReducer = createReducer(
       ...state,
       tasks,
       loading: false,
+      error: null,
     };
   }),
   on(TaskActions.reorderTasksFailure, (state, { error }) => {

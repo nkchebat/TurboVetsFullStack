@@ -18,6 +18,25 @@ export class RolesGuard implements CanActivate {
     }
 
     const { user } = context.switchToHttp().getRequest();
-    return requiredRoles.some((role) => user.role === role);
+
+    // Check if user exists and has a role
+    if (!user || !user.role) {
+      return false;
+    }
+
+    // Check if user role matches any required role
+    const hasRequiredRole = requiredRoles.some((role) => user.role === role);
+
+    // If user has required role, allow access
+    if (hasRequiredRole) {
+      return true;
+    }
+
+    // Implement role hierarchy: Owner can access Admin routes
+    if (user.role === 'Owner' && requiredRoles.includes('Admin')) {
+      return true;
+    }
+
+    return false;
   }
 }

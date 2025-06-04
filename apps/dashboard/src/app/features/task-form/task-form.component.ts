@@ -8,6 +8,7 @@ import * as TaskActions from '../../state/actions/task.actions';
 import { selectAllTasks, selectLoading } from '../../state/selectors';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
+import { formatTaskStatus } from '../../shared/utils/status-formatter.util';
 
 @Component({
   selector: 'app-task-form',
@@ -86,9 +87,11 @@ import { ReactiveFormsModule } from '@angular/forms';
             formControlName="status"
             class="form-input dark:bg-gray-700 dark:text-white dark:border-gray-600"
           >
-            <option value="TODO">To Do</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="DONE">Done</option>
+            <option value="TODO">{{ formatTaskStatus('TODO') }}</option>
+            <option value="IN_PROGRESS">
+              {{ formatTaskStatus('IN_PROGRESS') }}
+            </option>
+            <option value="DONE">{{ formatTaskStatus('DONE') }}</option>
           </select>
         </div>
 
@@ -135,23 +138,21 @@ export class TaskFormComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     console.log('[TASK FORM] Component initialized');
 
-    const idParam = this.route.snapshot.paramMap.get('id');
-    this.taskId = idParam ? Number(idParam) : undefined;
-    this.isEditMode = Boolean(this.taskId && !isNaN(this.taskId));
-
-    console.log(
-      '[TASK FORM] Edit mode:',
-      this.isEditMode,
-      'Task ID:',
-      this.taskId
-    );
-
-    if (this.isEditMode && this.taskId) {
-      this.loadTaskForEditing();
-    }
+    // Check if we're editing an existing task
+    this.route.params.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      if (params['id']) {
+        this.isEditMode = true;
+        this.taskId = +params['id'];
+        console.log('[TASK FORM] Edit mode enabled for task ID:', this.taskId);
+        this.loadTaskForEditing();
+      } else {
+        console.log('[TASK FORM] Create mode');
+      }
+    });
   }
 
   ngOnDestroy(): void {
+    console.log('[TASK FORM] Component destroyed');
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -203,51 +204,40 @@ export class TaskFormComponent implements OnInit, OnDestroy {
 
   onSubmit(): void {
     if (this.taskForm.valid) {
-      const taskData = this.taskForm.value;
-      console.log('[TASK FORM] Submitting task:', taskData);
-      console.log('[TASK FORM] Current form value:', this.taskForm.value);
-      console.log('[TASK FORM] Form controls:', {
-        title: this.taskForm.get('title')?.value,
-        description: this.taskForm.get('description')?.value,
-        status: this.taskForm.get('status')?.value,
-        category: this.taskForm.get('category')?.value,
-      });
+      const formData = this.taskForm.value;
+      console.log('[TASK FORM] Form submitted with data:', formData);
 
       if (this.isEditMode && this.taskId) {
-        console.log('[TASK FORM] Updating task with ID:', this.taskId);
-        console.log('[TASK FORM] Update payload:', {
-          id: this.taskId,
-          task: taskData,
-        });
+        console.log('[TASK FORM] Updating existing task');
         this.store.dispatch(
           TaskActions.updateTask({
             id: this.taskId,
-            task: taskData,
+            task: formData,
           })
         );
       } else {
         console.log('[TASK FORM] Creating new task');
-        this.store.dispatch(
-          TaskActions.createTask({
-            task: taskData,
-          })
-        );
+        this.store.dispatch(TaskActions.createTask({ task: formData }));
       }
 
-      this.router.navigate(['/tasks']);
+      // Navigate back to task list
+      this.router.navigate(['/dashboard/tasks']);
     } else {
-      console.log('[TASK FORM] Form is invalid:', this.taskForm.errors);
-      console.log('[TASK FORM] Form validation status:', {
-        title: this.taskForm.get('title')?.errors,
-        description: this.taskForm.get('description')?.errors,
-        status: this.taskForm.get('status')?.errors,
-        category: this.taskForm.get('category')?.errors,
+      console.log('[TASK FORM] Form is invalid');
+      // Mark all fields as touched to show validation errors
+      Object.keys(this.taskForm.controls).forEach((key) => {
+        this.taskForm.get(key)?.markAsTouched();
       });
     }
   }
 
   onCancel(): void {
     console.log('[TASK FORM] Form cancelled');
-    this.router.navigate(['/tasks']);
+    this.router.navigate(['/dashboard/tasks']);
+  }
+
+  // Utility method to format status for display
+  formatTaskStatus(status: 'TODO' | 'IN_PROGRESS' | 'DONE'): string {
+    return formatTaskStatus(status);
   }
 }

@@ -6,6 +6,11 @@ export class OrgGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
+    // Check if user exists and has required properties
+    if (!user || !user.organization) {
+      return false;
+    }
+
     // Get organizationId from request body, params, or query
     const targetOrgId =
       request.body?.organizationId ||

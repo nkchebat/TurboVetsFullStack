@@ -14,13 +14,15 @@ export class AuditLogService {
     userId: number,
     action: AuditAction,
     taskId: number,
-    details: string
+    details: string,
+    organizationId: number
   ): Promise<AuditLog> {
     const auditLog = this.auditLogRepository.create({
       userId,
       action,
       taskId,
       details,
+      organizationId,
       timestamp: new Date(),
     });
     return this.auditLogRepository.save(auditLog);

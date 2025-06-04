@@ -3,7 +3,22 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "start:dashboard": "nx serve dashboard"
+    "start:dashboard": "nx serve dashboard",
+    "test-all": "nx run-many --target=test --all --parallel=3 --verbose",
+    "test:all": "nx run-many --target=test --all --parallel=3 --verbose",
+    "test:all-detailed": "nx run-many --target=test --all --parallel=1 --verbose --coverage",
+    "test:summary": "npm run test:all 2>&1 | grep -E '(> nx run.*:test$|Tests:.*total$|Test Suites:.*total$|NX.*Successfully ran target|NX.*ran target.*failed)' | grep -v 'console.log' | grep -v 'existing outputs match the cache'",
+    "test:coverage": "nx run-many --target=test --all --parallel=3 --coverage --verbose",
+    "test:auth": "nx test auth --verbose",
+    "test:api": "nx test api --verbose",
+    "test:dashboard": "nx test dashboard --verbose",
+    "test:watch": "nx test --watch --verbose",
+    "test:debug": "nx test --verbose --runInBand --no-cache --detectOpenHandles",
+    "test:rbac": "nx test auth --verbose && nx test api --verbose --testNamePattern='RBAC|Guard|Role'",
+    "test:hierarchy": "nx test api --verbose --testNamePattern='hierarchy|parent|child|sub-organization'",
+    "test:integration": "nx test api --verbose --testNamePattern='e2e|integration'",
+    "test:guards": "nx test auth --verbose --testNamePattern='Guard'",
+    "test:reducers": "nx test dashboard --verbose --testNamePattern='reducer'"
   },
   "private": true,
   "dependencies": {
@@ -84,6 +99,7 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "jest-environment-node": "^29.7.0",
+    "jest-junit": "^16.0.0",
     "jest-preset-angular": "~14.4.0",
     "jsonc-eslint-parser": "^2.1.0",
     "nx": "^21.1.2",

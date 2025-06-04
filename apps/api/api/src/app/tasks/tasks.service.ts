@@ -23,7 +23,8 @@ export class TasksService {
       user.id,
       'CREATE' as AuditAction,
       savedTask.id,
-      'Task created'
+      'Task created',
+      user.organization.id
     );
     return savedTask;
   }
@@ -59,7 +60,8 @@ export class TasksService {
       user.id,
       'UPDATE' as AuditAction,
       id,
-      'Task updated'
+      'Task updated',
+      user.organization.id
     );
     return updatedTask;
   }
@@ -71,7 +73,8 @@ export class TasksService {
       user.id,
       'DELETE' as AuditAction,
       id,
-      'Task deleted'
+      'Task deleted',
+      user.organization.id
     );
   }
 }

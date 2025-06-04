@@ -15,6 +15,8 @@ describe('AuditLogService', () => {
     action: 'CREATE' as AuditAction,
     taskId: 1,
     details: 'Test audit log',
+    organizationId: 1,
+    organization: { id: 1, name: 'Test Org' } as any,
     timestamp: new Date(),
   };
 
@@ -57,7 +59,8 @@ describe('AuditLogService', () => {
         1,
         'CREATE' as AuditAction,
         1,
-        'Test log'
+        'Test log',
+        1
       );
 
       expect(result).toEqual(mockAuditLog);
@@ -66,6 +69,7 @@ describe('AuditLogService', () => {
         action: 'CREATE' as AuditAction,
         taskId: 1,
         details: 'Test log',
+        organizationId: 1,
         timestamp: expect.any(Date),
       });
     });

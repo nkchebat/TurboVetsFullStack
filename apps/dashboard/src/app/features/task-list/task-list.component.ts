@@ -20,6 +20,7 @@ import { DeleteConfirmationDialogComponent } from '../../shared/components/delet
 import { QuickDeleteWarningDialogComponent } from '../../shared/components/quick-delete-warning-dialog.component';
 import { TaskCreationDialogComponent } from '../../shared/components/task-creation-dialog.component';
 import { TaskEditDialogComponent } from '../../shared/components/task-edit-dialog.component';
+import { formatTaskStatus } from '../../shared/utils/status-formatter.util';
 
 @Component({
   selector: 'app-task-list',
@@ -213,7 +214,7 @@ import { TaskEditDialogComponent } from '../../shared/components/task-edit-dialo
                 [class.bg-blue-100]="task.status === 'IN_PROGRESS'"
                 [class.bg-green-100]="task.status === 'DONE'"
               >
-                {{ task.status }}
+                {{ formatTaskStatus(task.status) }}
               </span>
             </div>
 
@@ -735,5 +736,10 @@ export class TaskListComponent implements OnInit, OnDestroy {
     this.showQuickDeleteWarning = false;
     this.showCreateTaskDialog = false;
     this.showEditTaskDialog = false;
+  }
+
+  // Utility method to format status for display
+  formatTaskStatus(status: 'TODO' | 'IN_PROGRESS' | 'DONE'): string {
+    return formatTaskStatus(status);
   }
 }

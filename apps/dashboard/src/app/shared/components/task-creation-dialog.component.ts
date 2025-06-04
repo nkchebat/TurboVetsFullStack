@@ -16,6 +16,7 @@ import {
   ReactiveFormsModule,
 } from '@angular/forms';
 import { Task, TaskCategory } from '../../core/api.service';
+import { formatTaskStatus } from '../utils/status-formatter.util';
 
 @Component({
   selector: 'app-task-creation-dialog',
@@ -130,9 +131,11 @@ import { Task, TaskCategory } from '../../core/api.service';
                   formControlName="status"
                   class="form-input w-full text-sm sm:text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
                 >
-                  <option value="TODO">To Do</option>
-                  <option value="IN_PROGRESS">In Progress</option>
-                  <option value="DONE">Done</option>
+                  <option value="TODO">{{ formatTaskStatus('TODO') }}</option>
+                  <option value="IN_PROGRESS">
+                    {{ formatTaskStatus('IN_PROGRESS') }}
+                  </option>
+                  <option value="DONE">{{ formatTaskStatus('DONE') }}</option>
                 </select>
               </div>
             </div>
@@ -269,5 +272,10 @@ export class TaskCreationDialogComponent implements OnInit, OnChanges {
     console.log('Task creation cancelled');
     this.resetForm();
     this.cancel.emit();
+  }
+
+  // Utility method to format status for display
+  formatTaskStatus(status: 'TODO' | 'IN_PROGRESS' | 'DONE'): string {
+    return formatTaskStatus(status);
   }
 }
