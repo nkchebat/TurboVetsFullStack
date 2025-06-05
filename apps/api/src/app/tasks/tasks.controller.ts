@@ -6,16 +6,11 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   Logger,
 } from '@nestjs/common';
-import { TasksService, Task } from './tasks.service';
-
-export interface CreateTaskDto {
-  title: string;
-  description: string;
-  status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
-  category: 'Work' | 'Personal' | 'Shopping' | 'Health' | 'Other';
-}
+import { Task } from '@turbovets/data';
+import { TasksService, CreateTaskDto } from './tasks.service';
 
 @Controller('tasks')
 export class TasksController {
@@ -23,34 +18,93 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Post()
-  async create(@Body() createTaskDto: CreateTaskDto) {
-    this.logger.log('Creating task:', createTaskDto);
-    return this.tasksService.create(createTaskDto, { organization: { id: 1 } });
+  async create(
+    @Body() createTaskDto: CreateTaskDto,
+    @Query('organizationId') organizationId: string = '1'
+  ) {
+    const orgId = +organizationId;
+    this.logger.log(
+      'Creating task:',
+      createTaskDto,
+      'for organization:',
+      orgId
+    );
+
+    // Mock user context for now
+    const mockUser = {
+      id: 1,
+      role: 'Admin',
+      organization: { id: orgId },
+    };
+
+    return this.tasksService.create(createTaskDto, {
+      organization: { id: orgId },
+      user: mockUser,
+    });
   }
 
   @Get()
-  async findAll() {
-    this.logger.log('Finding all tasks');
-    return this.tasksService.findAll(1); // Default organization ID
+  async findAll(@Query('organizationId') organizationId: string = '1') {
+    const orgId = +organizationId;
+    this.logger.log('Finding all tasks for organization:', orgId);
+    return this.tasksService.findAll(orgId);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    this.logger.log(`Finding task with id: ${id}`);
-    return this.tasksService.findOne(+id, 1);
+  async findOne(
+    @Param('id') id: string,
+    @Query('organizationId') organizationId: string = '1'
+  ) {
+    const orgId = +organizationId;
+    this.logger.log(`Finding task with id: ${id} for organization: ${orgId}`);
+    return this.tasksService.findOne(+id, orgId);
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() updateTaskDto: Partial<Task>) {
-    this.logger.log(`Updating task ${id}:`, updateTaskDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateTaskDto: Partial<Task>,
+    @Query('organizationId') organizationId: string = '1'
+  ) {
+    const orgId = +organizationId;
+    this.logger.log(
+      `Updating task ${id}:`,
+      updateTaskDto,
+      'for organization:',
+      orgId
+    );
+
+    // Mock user context for now
+    const mockUser = {
+      id: 1,
+      role: 'Admin',
+      organization: { id: orgId },
+    };
+
     return this.tasksService.update(+id, updateTaskDto, {
-      organization: { id: 1 },
+      organization: { id: orgId },
+      user: mockUser,
     });
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    this.logger.log(`Removing task with id: ${id}`);
-    return this.tasksService.remove(+id, { organization: { id: 1 } });
+  async remove(
+    @Param('id') id: string,
+    @Query('organizationId') organizationId: string = '1'
+  ) {
+    const orgId = +organizationId;
+    this.logger.log(`Removing task with id: ${id} for organization: ${orgId}`);
+
+    // Mock user context for now
+    const mockUser = {
+      id: 1,
+      role: 'Admin',
+      organization: { id: orgId },
+    };
+
+    return this.tasksService.remove(+id, {
+      organization: { id: orgId },
+      user: mockUser,
+    });
   }
 }

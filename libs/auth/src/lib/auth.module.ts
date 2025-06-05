@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { UsersModule } from '../../api/src/app/users/users.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Organization } from '@turbovets/data';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from './guards/roles.guard';
 import { OrgGuard } from './guards/org.guard';
+import { OrganizationHierarchyGuard } from './guards/organization-hierarchy.guard';
 
 @Module({
   imports: [
@@ -14,9 +16,21 @@ import { OrgGuard } from './guards/org.guard';
       secret: process.env.JWT_SECRET || 'your-secret-key',
       signOptions: { expiresIn: '1d' },
     }),
-    UsersModule,
+    TypeOrmModule.forFeature([Organization]),
   ],
-  providers: [AuthService, JwtStrategy, RolesGuard, OrgGuard],
-  exports: [AuthService, JwtStrategy, RolesGuard, OrgGuard],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    RolesGuard,
+    OrgGuard,
+    OrganizationHierarchyGuard,
+  ],
+  exports: [
+    AuthService,
+    JwtStrategy,
+    RolesGuard,
+    OrgGuard,
+    OrganizationHierarchyGuard,
+  ],
 })
 export class AuthModule {}

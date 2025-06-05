@@ -1,214 +1,281 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
+import { Task, TaskStatus, TaskCategory, Organization } from '@turbovets/data';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
-export interface Task {
-  id: number;
+export interface CreateTaskDto {
   title: string;
   description: string;
-  status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+  status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
   category: 'Work' | 'Personal' | 'Shopping' | 'Health' | 'Other';
-  createdAt: string;
-  updatedAt: string;
 }
 
 @Injectable()
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
-  private tasks: Task[] = [
-    // Work Tasks
-    {
-      id: 1,
-      title: 'Complete project documentation',
-      description:
-        'Write comprehensive documentation for the new feature implementation',
-      status: 'TODO',
-      category: 'Work',
-      createdAt: new Date('2024-01-15').toISOString(),
-      updatedAt: new Date('2024-01-15').toISOString(),
-    },
-    {
-      id: 2,
-      title: 'Review pull requests',
-      description:
-        'Review and provide feedback on pending pull requests from team members',
-      status: 'IN_PROGRESS',
-      category: 'Work',
-      createdAt: new Date('2024-01-10').toISOString(),
-      updatedAt: new Date('2024-01-12').toISOString(),
-    },
-    {
-      id: 3,
-      title: 'Deploy to production',
-      description:
-        'Successfully deployed the latest release to production environment',
-      status: 'DONE',
-      category: 'Work',
-      createdAt: new Date('2024-01-05').toISOString(),
-      updatedAt: new Date('2024-01-08').toISOString(),
-    },
-    // Personal Tasks
-    {
-      id: 4,
-      title: 'Schedule vet appointment',
-      description:
-        'Book annual checkup for pets at the local veterinary clinic',
-      status: 'TODO',
-      category: 'Personal',
-      createdAt: new Date('2024-01-14').toISOString(),
-      updatedAt: new Date('2024-01-14').toISOString(),
-    },
-    {
-      id: 5,
-      title: 'Plan weekend trip',
-      description:
-        'Research and book accommodations for the upcoming weekend getaway',
-      status: 'IN_PROGRESS',
-      category: 'Personal',
-      createdAt: new Date('2024-01-12').toISOString(),
-      updatedAt: new Date('2024-01-13').toISOString(),
-    },
-    {
-      id: 6,
-      title: 'Organize photo albums',
-      description: 'Sorted and organized all family photos from the past year',
-      status: 'DONE',
-      category: 'Personal',
-      createdAt: new Date('2024-01-01').toISOString(),
-      updatedAt: new Date('2024-01-07').toISOString(),
-    },
-    // Shopping Tasks
-    {
-      id: 7,
-      title: 'Buy groceries for the week',
-      description:
-        'Purchase fresh vegetables, fruits, and pantry staples for meal planning',
-      status: 'TODO',
-      category: 'Shopping',
-      createdAt: new Date('2024-01-16').toISOString(),
-      updatedAt: new Date('2024-01-16').toISOString(),
-    },
-    {
-      id: 8,
-      title: 'Compare laptop prices',
-      description:
-        'Research and compare prices for a new development laptop across different retailers',
-      status: 'IN_PROGRESS',
-      category: 'Shopping',
-      createdAt: new Date('2024-01-11').toISOString(),
-      updatedAt: new Date('2024-01-15').toISOString(),
-    },
-    {
-      id: 9,
-      title: 'Purchase birthday gift',
-      description:
-        'Found and purchased the perfect birthday gift for my colleague',
-      status: 'DONE',
-      category: 'Shopping',
-      createdAt: new Date('2024-01-03').toISOString(),
-      updatedAt: new Date('2024-01-06').toISOString(),
-    },
-    // Health Tasks
-    {
-      id: 10,
-      title: 'Schedule annual physical',
-      description: 'Book yearly health checkup with primary care physician',
-      status: 'TODO',
-      category: 'Health',
-      createdAt: new Date('2024-01-13').toISOString(),
-      updatedAt: new Date('2024-01-13').toISOString(),
-    },
-    {
-      id: 11,
-      title: 'Start morning exercise routine',
-      description:
-        'Implementing a consistent 30-minute morning workout schedule',
-      status: 'IN_PROGRESS',
-      category: 'Health',
-      createdAt: new Date('2024-01-08').toISOString(),
-      updatedAt: new Date('2024-01-14').toISOString(),
-    },
-    {
-      id: 12,
-      title: 'Complete dental cleaning',
-      description: 'Successfully completed routine dental cleaning and checkup',
-      status: 'DONE',
-      category: 'Health',
-      createdAt: new Date('2024-01-02').toISOString(),
-      updatedAt: new Date('2024-01-04').toISOString(),
-    },
-    // Other Tasks
-    {
-      id: 13,
-      title: 'Learn new programming language',
-      description:
-        'Study and practice a new programming language for skill development',
-      status: 'TODO',
-      category: 'Other',
-      createdAt: new Date('2024-01-17').toISOString(),
-      updatedAt: new Date('2024-01-17').toISOString(),
-    },
-    {
-      id: 14,
-      title: 'Volunteer at community center',
-      description:
-        "Helping out at the local community center's weekly food distribution",
-      status: 'IN_PROGRESS',
-      category: 'Other',
-      createdAt: new Date('2024-01-09').toISOString(),
-      updatedAt: new Date('2024-01-16').toISOString(),
-    },
-    {
-      id: 15,
-      title: "Renew driver's license",
-      description: "Successfully renewed driver's license at the DMV office",
-      status: 'DONE',
-      category: 'Other',
-      createdAt: new Date('2024-01-01').toISOString(),
-      updatedAt: new Date('2024-01-05').toISOString(),
-    },
-  ];
 
-  async findAll(organizationId: number): Promise<Task[]> {
+  constructor(
+    @InjectRepository(Task)
+    private readonly tasksRepository: Repository<Task>,
+    @InjectRepository(Organization)
+    private readonly organizationsRepository: Repository<Organization>,
+    private readonly auditLogService: AuditLogService
+  ) {}
+
+  // Transform database format to API format
+  private transformTaskForApi(task: Task): any {
+    return {
+      ...task,
+      status: this.dbStatusToApi(task.status),
+      category: task.category, // Use the actual category from the database
+    };
+  }
+
+  // Convert database status to API status
+  private dbStatusToApi(status: TaskStatus): string {
+    const statusMap = {
+      todo: 'TODO',
+      'in-progress': 'IN_PROGRESS',
+      done: 'DONE',
+    };
+    return statusMap[status] || 'TODO';
+  }
+
+  // Convert API status to database status
+  private apiStatusToDb(status: string): TaskStatus {
+    const statusMap = {
+      TODO: 'todo' as TaskStatus,
+      IN_PROGRESS: 'in-progress' as TaskStatus,
+      DONE: 'done' as TaskStatus,
+    };
+    return statusMap[status] || ('todo' as TaskStatus);
+  }
+
+  async findAll(organizationId: number): Promise<any[]> {
     this.logger.log(`Finding all tasks for organization ${organizationId}`);
-    return this.tasks;
+    const tasks = await this.tasksRepository.find({
+      where: { organization: { id: organizationId } },
+      relations: ['owner', 'organization'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return tasks.map((task) => this.transformTaskForApi(task));
   }
 
-  async findOne(id: number, organizationId: number): Promise<Task> {
+  async findAllForOwner(
+    ownerOrgId: number,
+    targetOrgId: number
+  ): Promise<any[]> {
+    this.logger.log(
+      `Finding all tasks for Owner from org ${ownerOrgId} targeting org ${targetOrgId}`
+    );
+
+    // Get all organizations accessible to this owner (their org + all children)
+    const accessibleOrgIds = await this.getAccessibleOrganizations(ownerOrgId);
+
+    // If targetOrgId is specified and is accessible, filter to that org only
+    let orgIdsToQuery = accessibleOrgIds;
+    if (targetOrgId && accessibleOrgIds.includes(targetOrgId)) {
+      orgIdsToQuery = [targetOrgId];
+    } else if (targetOrgId && !accessibleOrgIds.includes(targetOrgId)) {
+      // Target org is not accessible to this owner
+      return [];
+    }
+
+    const tasks = await this.tasksRepository.find({
+      where: { organization: { id: In(orgIdsToQuery) } },
+      relations: ['owner', 'organization'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return tasks.map((task) => this.transformTaskForApi(task));
+  }
+
+  private async getAccessibleOrganizations(
+    parentOrgId: number
+  ): Promise<number[]> {
+    const accessibleIds = [parentOrgId]; // Always include the owner's own org
+    const childOrgs = await this.findAllChildOrganizations(parentOrgId);
+    accessibleIds.push(...childOrgs.map((org) => org.id));
+    return accessibleIds;
+  }
+
+  private async findAllChildOrganizations(
+    parentOrgId: number
+  ): Promise<Organization[]> {
+    const allChildren: Organization[] = [];
+    const queue = [parentOrgId];
+
+    while (queue.length > 0) {
+      const currentParentId = queue.shift()!;
+
+      const children = await this.organizationsRepository.find({
+        where: { parentOrg: { id: currentParentId } },
+      });
+
+      for (const child of children) {
+        allChildren.push(child);
+        queue.push(child.id); // Add to queue for recursive search
+      }
+    }
+
+    return allChildren;
+  }
+
+  async findOne(id: number, organizationId: number): Promise<any> {
     this.logger.log(`Finding task ${id} for organization ${organizationId}`);
-    return this.tasks.find((task) => task.id === id);
+    const task = await this.tasksRepository.findOne({
+      where: {
+        id,
+        organization: { id: organizationId },
+      },
+      relations: ['owner', 'organization'],
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    return this.transformTaskForApi(task);
   }
 
-  async create(createTaskDto: Partial<Task>, user: any): Promise<Task> {
-    this.logger.log('Creating new task:', createTaskDto);
-    const newTask: Task = {
-      id: Math.max(...this.tasks.map((t) => t.id), 0) + 1,
-      ...createTaskDto,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    } as Task;
-    this.tasks.push(newTask);
-    return newTask;
+  async create(createTaskDto: CreateTaskDto, context: any): Promise<any> {
+    this.logger.log(
+      'Creating new task:',
+      createTaskDto,
+      'for organization:',
+      context.organization.id
+    );
+
+    const task = this.tasksRepository.create({
+      title: createTaskDto.title,
+      description: createTaskDto.description,
+      status: createTaskDto.status
+        ? this.apiStatusToDb(createTaskDto.status)
+        : ('todo' as TaskStatus),
+      category: createTaskDto.category as TaskCategory,
+      organization: { id: context.organization.id },
+      owner: context.user, // Now we have proper user context
+    });
+
+    const savedTask = await this.tasksRepository.save(task);
+
+    // Log the creation action
+    await this.auditLogService.log(
+      context.user.id,
+      'CREATE',
+      savedTask.id,
+      `Created task: ${savedTask.title}`,
+      context.organization.id
+    );
+
+    return this.transformTaskForApi(savedTask);
   }
 
   async update(
     id: number,
-    updateTaskDto: Partial<Task>,
-    user: any
-  ): Promise<Task> {
-    this.logger.log(`Updating task ${id}:`, updateTaskDto);
-    const index = this.tasks.findIndex((task) => task.id === id);
-    if (index !== -1) {
-      this.tasks[index] = {
-        ...this.tasks[index],
-        ...updateTaskDto,
-        updatedAt: new Date().toISOString(),
-      };
-      return this.tasks[index];
+    updateTaskDto: Partial<any>,
+    context: any
+  ): Promise<any> {
+    this.logger.log(
+      `Updating task ${id}:`,
+      updateTaskDto,
+      'for organization:',
+      context.organization.id
+    );
+
+    const task = await this.tasksRepository.findOne({
+      where: {
+        id,
+        organization: { id: context.organization.id },
+      },
+      relations: ['owner', 'organization'],
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
     }
-    return null;
+
+    const oldValues = {
+      title: task.title,
+      description: task.description,
+      status: this.dbStatusToApi(task.status),
+      category: task.category,
+    };
+
+    // Update only allowed fields
+    if (updateTaskDto.title) task.title = updateTaskDto.title;
+    if (updateTaskDto.description) task.description = updateTaskDto.description;
+    if (updateTaskDto.status)
+      task.status = this.apiStatusToDb(updateTaskDto.status);
+    if (updateTaskDto.category)
+      task.category = updateTaskDto.category as TaskCategory;
+
+    const savedTask = await this.tasksRepository.save(task);
+
+    // Log the update action with details about what changed
+    const changes = [];
+    if (updateTaskDto.title && oldValues.title !== updateTaskDto.title) {
+      changes.push(`title: "${oldValues.title}" → "${updateTaskDto.title}"`);
+    }
+    if (
+      updateTaskDto.description &&
+      oldValues.description !== updateTaskDto.description
+    ) {
+      changes.push(
+        `description: "${oldValues.description}" → "${updateTaskDto.description}"`
+      );
+    }
+    if (updateTaskDto.status && oldValues.status !== updateTaskDto.status) {
+      changes.push(`status: "${oldValues.status}" → "${updateTaskDto.status}"`);
+    }
+    if (
+      updateTaskDto.category &&
+      oldValues.category !== updateTaskDto.category
+    ) {
+      changes.push(
+        `category: "${oldValues.category}" → "${updateTaskDto.category}"`
+      );
+    }
+
+    await this.auditLogService.log(
+      context.user.id,
+      'UPDATE',
+      savedTask.id,
+      `Updated task: ${savedTask.title}. Changes: ${changes.join(', ')}`,
+      context.organization.id
+    );
+
+    return this.transformTaskForApi(savedTask);
   }
 
-  async remove(id: number, user: any): Promise<void> {
-    this.logger.log(`Removing task ${id}`);
-    this.tasks = this.tasks.filter((task) => task.id !== id);
+  async remove(id: number, context: any): Promise<void> {
+    this.logger.log(
+      `Removing task ${id} for organization:`,
+      context.organization.id
+    );
+
+    const task = await this.tasksRepository.findOne({
+      where: {
+        id,
+        organization: { id: context.organization.id },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    // Log the deletion action before removing
+    await this.auditLogService.log(
+      context.user.id,
+      'DELETE',
+      task.id,
+      `Deleted task: ${task.title}`,
+      context.organization.id
+    );
+
+    await this.tasksRepository.remove(task);
   }
 }

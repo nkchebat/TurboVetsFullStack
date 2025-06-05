@@ -4,15 +4,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User, CreateUserDto } from '@turbovets/data';
+import { Repository, In } from 'typeorm';
+import { User, CreateUserDto, Organization } from '@turbovets/data';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
-    private readonly usersRepository: Repository<User>
+    private readonly usersRepository: Repository<User>,
+    @InjectRepository(Organization)
+    private readonly organizationsRepository: Repository<Organization>
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -53,6 +55,56 @@ export class UsersService {
       where: { organization: { id: organizationId } },
       relations: ['organization'],
     });
+  }
+
+  async findAllInOwnerHierarchy(ownerOrgId: number, targetOrgId?: number) {
+    // Get all organizations accessible to this owner (their org + all children)
+    const accessibleOrgIds = await this.getAccessibleOrganizations(ownerOrgId);
+
+    // If targetOrgId is specified and is accessible, filter to that org only
+    let orgIdsToQuery = accessibleOrgIds;
+    if (targetOrgId && accessibleOrgIds.includes(targetOrgId)) {
+      orgIdsToQuery = [targetOrgId];
+    } else if (targetOrgId && !accessibleOrgIds.includes(targetOrgId)) {
+      // Target org is not accessible to this owner
+      return [];
+    }
+
+    return this.usersRepository.find({
+      where: { organization: { id: In(orgIdsToQuery) } },
+      relations: ['organization'],
+    });
+  }
+
+  private async getAccessibleOrganizations(
+    parentOrgId: number
+  ): Promise<number[]> {
+    const accessibleIds = [parentOrgId]; // Always include the owner's own org
+    const childOrgs = await this.findAllChildOrganizations(parentOrgId);
+    accessibleIds.push(...childOrgs.map((org) => org.id));
+    return accessibleIds;
+  }
+
+  private async findAllChildOrganizations(
+    parentOrgId: number
+  ): Promise<Organization[]> {
+    const allChildren: Organization[] = [];
+    const queue = [parentOrgId];
+
+    while (queue.length > 0) {
+      const currentParentId = queue.shift()!;
+
+      const children = await this.organizationsRepository.find({
+        where: { parentOrg: { id: currentParentId } },
+      });
+
+      for (const child of children) {
+        allChildren.push(child);
+        queue.push(child.id); // Add to queue for recursive search
+      }
+    }
+
+    return allChildren;
   }
 
   async update(id: number, updateData: Partial<User>) {

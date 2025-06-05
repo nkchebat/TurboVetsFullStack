@@ -3,6 +3,12 @@ import { User } from './user.entity';
 import { Organization } from './organization.entity';
 
 export type TaskStatus = 'todo' | 'in-progress' | 'done';
+export type TaskCategory =
+  | 'Work'
+  | 'Personal'
+  | 'Shopping'
+  | 'Health'
+  | 'Other';
 
 @Entity()
 export class Task {
@@ -22,15 +28,22 @@ export class Task {
   })
   status: TaskStatus;
 
+  @Column({
+    type: 'varchar',
+    enum: ['Work', 'Personal', 'Shopping', 'Health', 'Other'],
+    default: 'Work',
+  })
+  category: TaskCategory;
+
   @ManyToOne(() => User, (user) => user.tasks)
   owner: User;
 
   @ManyToOne(() => Organization, (organization) => organization.tasks)
   organization: Organization;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   updatedAt: Date;
 }

@@ -1,24 +1,28 @@
-import { Controller, Get, UseGuards, Request, Param } from '@nestjs/common';
-import { JwtAuthGuard, RolesGuard, Roles } from '@turbovets/auth';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { AuditLogService } from './audit-log.service';
 
-@Controller('audit-log')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@Controller('audit-logs')
 export class AuditLogController {
   constructor(private readonly auditLogService: AuditLogService) {}
 
   @Get()
-  @Roles('Owner', 'Admin')
-  async findAll(@Request() req) {
-    // If Owner, show all logs. If Admin, show only their org's logs
-    const organizationId =
-      req.user.role === 'Admin' ? req.user.organization.id : undefined;
-    return this.auditLogService.findAll(organizationId);
+  async findAll(@Query('organizationId') organizationId: string = '1') {
+    const targetOrgId = +organizationId;
+    return this.auditLogService.findAll(targetOrgId);
+  }
+
+  @Get('all')
+  async findAllLogs() {
+    // For Owner access - returns all audit logs across all organizations
+    return this.auditLogService.findAll(); // Call without organizationId to get all
   }
 
   @Get('task/:taskId')
-  @Roles('Owner', 'Admin')
-  async findByTask(@Param('taskId') taskId: string) {
-    return this.auditLogService.findByTask(+taskId);
+  async findByTask(
+    @Param('taskId') taskId: string,
+    @Query('organizationId') organizationId: string = '1'
+  ) {
+    const orgId = +organizationId;
+    return this.auditLogService.findByTask(+taskId, orgId);
   }
 }

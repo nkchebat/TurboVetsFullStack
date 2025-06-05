@@ -5,27 +5,59 @@ import {
   Body,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
-import { JwtAuthGuard, RolesGuard, OrgGuard, Roles } from '@turbovets/auth';
+import {
+  JwtAuthGuard,
+  RolesGuard,
+  OrganizationHierarchyGuard,
+  Roles,
+  RequirePermissions,
+} from '@turbovets/auth';
 import { CreateUserDto, User } from '@turbovets/data';
 import { UsersService } from './users.service';
 
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard, OrgGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, OrganizationHierarchyGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
   @Roles('Owner')
-  async createUser(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  @RequirePermissions('admin')
+  async createUser(
+    @Body() createUserDto: CreateUserDto,
+    @Query('organizationId') organizationId: string,
+    @Request() req
+  ) {
+    const orgId = +organizationId;
+    return this.usersService.create({
+      ...createUserDto,
+      organizationId: orgId,
+    });
   }
 
   @Get()
   @Roles('Owner', 'Admin')
-  async findUsersInOrganization(@Request() req) {
-    const organizationId = req.user.organization.id;
-    return this.usersService.findAllInOrganization(organizationId);
+  @RequirePermissions('read')
+  async findUsersInOrganization(
+    @Request() req,
+    @Query('organizationId') organizationId?: string
+  ) {
+    const targetOrgId = organizationId
+      ? +organizationId
+      : req.user.organization.id;
+
+    // For Owners, they can access users from their hierarchy
+    if (req.user.role === 'Owner') {
+      return this.usersService.findAllInOwnerHierarchy(
+        req.user.organization.id,
+        targetOrgId
+      );
+    }
+
+    // For Admins, only their own organization
+    return this.usersService.findAllInOrganization(req.user.organization.id);
   }
 
   @Get('me')

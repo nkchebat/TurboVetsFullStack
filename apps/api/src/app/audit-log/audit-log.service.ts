@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { AuditLog, AuditAction, User, Organization } from '@turbovets/data';
 
 @Injectable()
@@ -116,17 +116,114 @@ export class AuditLogService {
       });
     }
 
-    return query
+    const auditLogs = await query
       .orderBy('audit_log.timestamp', 'DESC')
       .take(100) // Limit to last 100 entries
       .getMany();
+
+    // Transform the results to include organizationName directly
+    return auditLogs.map((log) => ({
+      id: log.id,
+      userId: log.userId,
+      action: log.action,
+      taskId: log.taskId,
+      details: log.details,
+      timestamp: log.timestamp,
+      organizationId: log.organizationId,
+      organizationName: log.organization?.name || 'Unknown Organization',
+    }));
   }
 
-  async findByTask(taskId: number) {
-    return this.auditLogRepository.find({
-      where: { taskId },
+  async findAllForOwner(ownerOrgId: number, targetOrgId?: number) {
+    // Get all organizations accessible to this owner (their org + all children)
+    const accessibleOrgIds = await this.getAccessibleOrganizations(ownerOrgId);
+
+    // If targetOrgId is specified and is accessible, filter to that org only
+    let orgIdsToQuery = accessibleOrgIds;
+    if (targetOrgId && accessibleOrgIds.includes(targetOrgId)) {
+      orgIdsToQuery = [targetOrgId];
+    } else if (targetOrgId && !accessibleOrgIds.includes(targetOrgId)) {
+      // Target org is not accessible to this owner
+      return [];
+    }
+
+    const auditLogs = await this.auditLogRepository.find({
+      where: { organizationId: In(orgIdsToQuery) },
       relations: ['organization'],
       order: { timestamp: 'DESC' },
+      take: 100, // Limit to last 100 entries
     });
+
+    // Transform the results to include organizationName directly
+    return auditLogs.map((log) => ({
+      id: log.id,
+      userId: log.userId,
+      action: log.action,
+      taskId: log.taskId,
+      details: log.details,
+      timestamp: log.timestamp,
+      organizationId: log.organizationId,
+      organizationName: log.organization?.name || 'Unknown Organization',
+    }));
+  }
+
+  private async getAccessibleOrganizations(
+    parentOrgId: number
+  ): Promise<number[]> {
+    const accessibleIds = [parentOrgId]; // Always include the owner's own org
+    const childOrgs = await this.findAllChildOrganizations(parentOrgId);
+    accessibleIds.push(...childOrgs.map((org) => org.id));
+    return accessibleIds;
+  }
+
+  private async findAllChildOrganizations(
+    parentOrgId: number
+  ): Promise<Organization[]> {
+    const allChildren: Organization[] = [];
+    const queue = [parentOrgId];
+
+    while (queue.length > 0) {
+      const currentParentId = queue.shift()!;
+
+      const children = await this.organizationRepository.find({
+        where: { parentOrg: { id: currentParentId } },
+      });
+
+      for (const child of children) {
+        allChildren.push(child);
+        queue.push(child.id); // Add to queue for recursive search
+      }
+    }
+
+    return allChildren;
+  }
+
+  async findByTask(taskId: number, organizationId?: number) {
+    const query = this.auditLogRepository
+      .createQueryBuilder('audit_log')
+      .leftJoinAndSelect('audit_log.organization', 'organization')
+      .where('audit_log.taskId = :taskId', { taskId });
+
+    if (organizationId) {
+      query.andWhere('audit_log.organizationId = :organizationId', {
+        organizationId,
+      });
+    }
+
+    const auditLogs = await query
+      .orderBy('audit_log.timestamp', 'DESC')
+      .getMany();
+
+    // Transform the results to include organizationName directly
+    return auditLogs.map((log) => ({
+      id: log.id,
+      userId: log.userId,
+      action: log.action,
+      taskId: log.taskId,
+      details: log.details,
+      timestamp: log.timestamp,
+      organizationId: log.organizationId,
+      organizationName: log.organization?.name || 'Unknown Organization',
+    }));
   }
 }

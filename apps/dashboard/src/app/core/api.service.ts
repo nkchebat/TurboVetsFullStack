@@ -24,7 +24,9 @@ export interface Task {
 export interface Organization {
   id: number;
   name: string;
-  parentOrgId?: number;
+  parentOrg?: Organization | null;
+  childOrganizations?: Organization[];
+  users?: any[]; // User interface not defined yet
   createdAt: string;
   updatedAt: string;
 }
@@ -391,20 +393,34 @@ const INITIAL_MOCK_ORGANIZATIONS: Organization[] = [
     name: 'TurboVets Main',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    parentOrg: null,
+    childOrganizations: [],
   },
   {
     id: 2,
     name: 'TurboVets North Branch',
-    parentOrgId: 1,
+    parentOrg: {
+      id: 1,
+      name: 'TurboVets Main',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    childOrganizations: [],
   },
   {
     id: 3,
     name: 'TurboVets South Branch',
-    parentOrgId: 1,
+    parentOrg: {
+      id: 1,
+      name: 'TurboVets Main',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    childOrganizations: [],
   },
 ];
 
@@ -416,7 +432,7 @@ let MOCK_ORGANIZATIONS = [...INITIAL_MOCK_ORGANIZATIONS];
 })
 export class ApiService {
   private apiUrl = 'http://localhost:3001/api';
-  private mockMode = true; // Set to false to use real backend
+  private mockMode = false; // Set to false to use real backend
   private currentOrganizationId = 1; // Default organization
   private currentUserRole: string = 'Admin'; // Mock current user role - Admin by default
   private currentUserId: number = 1; // Will be properly set during app initialization
@@ -546,7 +562,8 @@ export class ApiService {
       const newOrg: Organization = {
         id: Math.max(...MOCK_ORGANIZATIONS.map((o) => o.id), 0) + 1,
         name: org.name!,
-        parentOrgId: org.parentOrgId,
+        parentOrg: org.parentOrg || null,
+        childOrganizations: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -741,8 +758,10 @@ export class ApiService {
       return of(newTask).pipe(delay(300));
     }
 
-    const taskWithOrg = { ...task, organizationId: this.currentOrganizationId };
-    return this.http.post<Task>(`${this.apiUrl}/tasks`, taskWithOrg);
+    return this.http.post<Task>(
+      `${this.apiUrl}/tasks?organizationId=${this.currentOrganizationId}`,
+      task
+    );
   }
 
   updateTask(id: number, task: Partial<Task>): Observable<Task> {
@@ -811,8 +830,10 @@ export class ApiService {
       throw new Error('Task not found');
     }
 
-    const taskWithOrg = { ...task, organizationId: this.currentOrganizationId };
-    return this.http.patch<Task>(`${this.apiUrl}/tasks/${id}`, taskWithOrg);
+    return this.http.put<Task>(
+      `${this.apiUrl}/tasks/${id}?organizationId=${this.currentOrganizationId}`,
+      task
+    );
   }
 
   updateTaskOrder(id: number, order: number): Observable<Task> {

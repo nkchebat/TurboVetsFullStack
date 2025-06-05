@@ -17,7 +17,7 @@ export class AuditLog {
   })
   action: AuditAction;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   timestamp: Date;
 
   @Column({ nullable: true })

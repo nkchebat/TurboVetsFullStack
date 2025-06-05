@@ -39,6 +39,13 @@ export class OrganizationsService {
     return this.organizationsRepository.save(organization);
   }
 
+  async findAll() {
+    return this.organizationsRepository.find({
+      relations: ['parentOrg', 'childOrganizations', 'users'],
+      order: { id: 'ASC' },
+    });
+  }
+
   async findOne(id: number) {
     const org = await this.organizationsRepository.findOne({
       where: { id },
