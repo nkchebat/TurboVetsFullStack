@@ -77,7 +77,7 @@ export class KeyboardShortcutsService {
     },
     {
       key: 'Delete',
-      description: 'Delete selected task (quick delete mode)',
+      description: 'Delete selected task',
       action: 'delete-task',
     },
   ];

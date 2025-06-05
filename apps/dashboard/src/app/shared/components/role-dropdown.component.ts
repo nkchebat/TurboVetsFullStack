@@ -7,6 +7,7 @@ import { take } from 'rxjs/operators';
 import { UserRole } from '../../core/auth.service';
 import { ApiService, Organization } from '../../core/api.service';
 import * as AuthActions from '../../state/actions/auth.actions';
+import * as TaskActions from '../../state/actions/task.actions';
 import { selectUserRole } from '../../state/selectors';
 import { selectCurrentOrganization } from '../../state/selectors/organization.selectors';
 
@@ -79,7 +80,7 @@ export class RoleDropdownComponent implements OnInit {
   userRole$: Observable<UserRole>;
   currentOrganization$: Observable<Organization | null>;
 
-  // Base user IDs for each role
+  // Base user IDs for each role - these are just for demo purposes
   private roleUserIds = {
     Owner: 0, // Owner user
     Admin: 1, // Admin user
@@ -103,16 +104,19 @@ export class RoleDropdownComponent implements OnInit {
 
       try {
         // Update API service with new role and user
+        // This will NOT force an organization change, preserving current selection
         this.apiService.setCurrentUserRole(role, userId);
 
-        // The organization is already maintained by the API service
-        // No need to explicitly set it since it preserves the current selection
-
-        // Update store
+        // Update store - this will trigger the roleChange$ effect to reload tasks
         this.store.dispatch(AuthActions.setUserRole({ role }));
 
         console.log(
-          `Switched to ${role} - User ID: ${userId}, Org: ${currentOrgId} (${currentOrg?.name})`
+          `Switched to ${role} - User ID: ${userId}, staying in Org: ${currentOrgId} (${
+            currentOrg?.name || 'Unknown'
+          })`
+        );
+        console.log(
+          '[ROLE DROPDOWN] Role and organization switching is unrestricted for demo purposes'
         );
       } catch (error) {
         console.error('Error switching role:', error);

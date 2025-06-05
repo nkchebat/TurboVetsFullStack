@@ -135,13 +135,19 @@ select.form-input:focus {
   animation: task-selection-pulse 2s infinite;
 }
 
-/* Smooth transitions for task navigation */
+/* Enhanced task selection styling */
 .task-container {
   @apply transition-all duration-200 ease-in-out;
 }
 
 .task-container:hover {
   @apply transform translate-y-[-2px] shadow-lg;
+}
+
+/* Better visual feedback for selected tasks */
+.task-selected-enhanced {
+  @apply ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20 transform scale-[1.01] transition-all duration-200;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
 }
 
 /* Ensure keyboard shortcuts guide is above other modals */

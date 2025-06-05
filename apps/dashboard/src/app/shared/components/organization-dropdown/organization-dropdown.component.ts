@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { Observable, Subject } from 'rxjs';
-import { takeUntil, filter } from 'rxjs/operators';
+import { takeUntil } from 'rxjs/operators';
 
 import { Organization, ApiService } from '../../../core/api.service';
 import { selectUserRole } from '../../../state/selectors';
@@ -14,7 +14,6 @@ import {
   selectOrganizationLoading,
   selectOrganizationError,
 } from '../../../state/selectors/organization.selectors';
-import { Actions, ofType } from '@ngrx/effects';
 
 interface ErrorNotification {
   message: string;
@@ -35,17 +34,11 @@ export class OrganizationDropdownComponent implements OnInit, OnDestroy {
   userRole$: Observable<string>;
 
   isOpen = false;
-  showingAddForm = false;
-  newOrgName = '';
   errorNotification: ErrorNotification | null = null;
 
   private destroy$ = new Subject<void>();
 
-  constructor(
-    private store: Store,
-    private actions$: Actions,
-    private apiService: ApiService
-  ) {
+  constructor(private store: Store, private apiService: ApiService) {
     this.organizations$ = this.store.select(selectOrganizations);
     this.currentOrganization$ = this.store.select(selectCurrentOrganization);
     this.loading$ = this.store.select(selectOrganizationLoading);
@@ -57,39 +50,11 @@ export class OrganizationDropdownComponent implements OnInit, OnDestroy {
     // Load organizations on component initialization
     this.store.dispatch(OrganizationActions.loadOrganizations());
 
-    // Listen for role changes and close dropdown if switching from Owner to non-Owner
-    this.userRole$.pipe(takeUntil(this.destroy$)).subscribe((role) => {
-      if (role !== 'Owner') {
-        // Close dropdown and forms when switching to Admin/Viewer
-        this.isOpen = false;
-        this.showingAddForm = false;
-        this.newOrgName = '';
-        this.clearError();
-      }
+    // Close dropdown when role changes (cleanup)
+    this.userRole$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.isOpen = false;
+      this.clearError();
     });
-
-    // Listen for organization creation success to close the form
-    this.actions$
-      .pipe(
-        ofType(OrganizationActions.createOrganizationSuccess),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(() => {
-        this.showingAddForm = false;
-        this.newOrgName = '';
-        this.isOpen = false;
-      });
-
-    // Listen for organization creation failure
-    this.actions$
-      .pipe(
-        ofType(OrganizationActions.createOrganizationFailure),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(({ error }) => {
-        console.error('Failed to create organization:', error);
-        this.showError('Failed to create organization: ' + error);
-      });
   }
 
   ngOnDestroy(): void {
@@ -99,7 +64,6 @@ export class OrganizationDropdownComponent implements OnInit, OnDestroy {
 
   toggleDropdown(): void {
     this.isOpen = !this.isOpen;
-    this.showingAddForm = false; // Close add form when toggling
     this.clearError();
   }
 
@@ -110,15 +74,36 @@ export class OrganizationDropdownComponent implements OnInit, OnDestroy {
     );
 
     try {
-      // Check if user has access to this organization
-      if (!this.apiService.canAccessOrganization(organization.id)) {
-        const userRole = this.apiService.getCurrentUserRole();
-        this.showError(
-          `Access denied: ${userRole} users can only access their assigned organization.`
-        );
-        return;
-      }
+      // Log current state before change
+      console.log('[ORG DROPDOWN] Current API service state before change:');
+      console.log(
+        '  - Current Org ID:',
+        this.apiService.getCurrentOrganization()
+      );
+      console.log(
+        '  - Current User Role:',
+        this.apiService.getCurrentUserRole()
+      );
 
+      // Update API service FIRST (synchronously) to avoid race conditions
+      this.apiService.setCurrentOrganization(organization.id);
+      console.log(
+        '[ORG DROPDOWN] Updated API service organization to:',
+        organization.id
+      );
+
+      // Verify the change was applied
+      console.log('[ORG DROPDOWN] API service state after change:');
+      console.log(
+        '  - Current Org ID:',
+        this.apiService.getCurrentOrganization()
+      );
+      console.log(
+        '  - Current User Role:',
+        this.apiService.getCurrentUserRole()
+      );
+
+      // Then dispatch to store
       this.store.dispatch(
         OrganizationActions.setCurrentOrganization({
           organizationId: organization.id,
@@ -134,45 +119,6 @@ export class OrganizationDropdownComponent implements OnInit, OnDestroy {
       console.error('[ORG DROPDOWN] Error selecting organization:', error);
       this.showError(error.message || 'Failed to switch organization');
     }
-  }
-
-  showAddForm(): void {
-    const userRole = this.apiService.getCurrentUserRole();
-
-    // Only Owners can create organizations
-    if (userRole !== 'Owner') {
-      this.showError(`Access denied: Only Owners can create organizations.`);
-      return;
-    }
-
-    this.showingAddForm = true;
-    this.clearError();
-  }
-
-  hideAddForm(): void {
-    this.showingAddForm = false;
-    this.newOrgName = '';
-    this.clearError();
-  }
-
-  addOrganization(): void {
-    if (!this.newOrgName.trim()) {
-      this.showError('Organization name cannot be empty');
-      return;
-    }
-
-    const userRole = this.apiService.getCurrentUserRole();
-    if (userRole !== 'Owner') {
-      this.showError('Access denied: Only Owners can create organizations.');
-      return;
-    }
-
-    console.log('[ORG DROPDOWN] Creating organization:', this.newOrgName);
-    this.store.dispatch(
-      OrganizationActions.createOrganization({
-        organization: { name: this.newOrgName.trim() },
-      })
-    );
   }
 
   trackByOrgId(index: number, org: Organization): number {

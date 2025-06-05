@@ -15,7 +15,7 @@ import {
   Validators,
   ReactiveFormsModule,
 } from '@angular/forms';
-import { Task, TaskCategory } from '../../core/api.service';
+import { Task, TaskCategory, Organization } from '../../core/api.service';
 import { formatTaskStatus } from '../utils/status-formatter.util';
 
 @Component({
@@ -139,6 +139,22 @@ import { formatTaskStatus } from '../utils/status-formatter.util';
                 </select>
               </div>
             </div>
+
+            <!-- Organization Selection (only for cross-org users) -->
+            <div *ngIf="showCrossOrgFeatures">
+              <label class="form-label text-sm" for="organization"
+                >Organization</label
+              >
+              <select
+                id="organization"
+                formControlName="organizationId"
+                class="form-input w-full text-sm sm:text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              >
+                <option *ngFor="let org of organizations" [value]="org.id">
+                  {{ org.name }}
+                </option>
+              </select>
+            </div>
           </form>
         </div>
 
@@ -204,6 +220,8 @@ import { formatTaskStatus } from '../utils/status-formatter.util';
 export class TaskEditDialogComponent implements OnInit, OnChanges {
   @Input() isOpen = false;
   @Input() task: Task | null = null;
+  @Input() showCrossOrgFeatures = false; // Whether to show organization selection
+  @Input() organizations: Organization[] = []; // Available organizations for selection
   @Output() confirm = new EventEmitter<{
     id: number;
     task: {
@@ -211,6 +229,7 @@ export class TaskEditDialogComponent implements OnInit, OnChanges {
       description: string;
       category: TaskCategory;
       status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+      organizationId?: number;
     };
   }>();
   @Output() cancel = new EventEmitter<void>();
@@ -223,6 +242,7 @@ export class TaskEditDialogComponent implements OnInit, OnChanges {
       description: [''],
       status: ['TODO'],
       category: ['Work'],
+      organizationId: [1],
     });
   }
 
@@ -263,6 +283,7 @@ export class TaskEditDialogComponent implements OnInit, OnChanges {
         description: this.task.description,
         status: this.task.status,
         category: this.task.category,
+        organizationId: this.task.organization?.id || 1,
       });
     }
   }

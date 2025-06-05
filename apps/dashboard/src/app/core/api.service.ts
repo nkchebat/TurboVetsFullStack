@@ -19,6 +19,10 @@ export interface Task {
   order?: number;
   createdAt: string;
   updatedAt: string;
+  organization?: {
+    id: number;
+    name: string;
+  };
 }
 
 export interface Organization {
@@ -442,10 +446,19 @@ export class ApiService {
     const savedRole = localStorage.getItem('userRole') as string;
     if (savedRole) {
       this.currentUserRole = savedRole;
-      // Set appropriate user ID based on role
-      const roleUserIds = { Owner: 0, Admin: 1, Viewer: 3 };
-      this.currentUserId =
-        roleUserIds[savedRole as keyof typeof roleUserIds] || 1;
+
+      // Find a user with the saved role to set as current user
+      const userWithRole = Object.entries(USER_ROLE_ASSIGNMENTS).find(
+        ([, assignment]) => assignment.role === savedRole
+      );
+
+      if (userWithRole) {
+        this.currentUserId = parseInt(userWithRole[0]);
+        const userAssignment = userWithRole[1];
+
+        // Set organization to user's assigned organization
+        this.currentOrganizationId = userAssignment.organizationId;
+      }
     }
 
     console.log('[API SERVICE] Initialized with:');
@@ -488,15 +501,14 @@ export class ApiService {
 
     if (userId) {
       this.currentUserId = userId;
-      // Note: We do NOT automatically change organization based on user assignment
-      // The organization should be set explicitly via setCurrentOrganization()
-      // This allows dynamic role switching while preserving current organization context
       console.log(
         '[API SERVICE] Updated user ID to:',
         userId,
         'keeping current organization:',
         this.currentOrganizationId
       );
+      // NOTE: We no longer force organization changes based on USER_ROLE_ASSIGNMENTS
+      // to allow free switching between any role/organization combination for demo purposes
     }
   }
 
@@ -504,27 +516,41 @@ export class ApiService {
     return this.currentUserRole;
   }
 
-  // Check if current user can access a specific organization
-  canAccessOrganization(organizationId: number): boolean {
-    if (this.currentUserRole === 'Owner') {
-      return true; // Owners can access any organization
+  // Helper method to get child organizations of a given organization
+  private getChildOrganizations(organizationId: number): Organization[] {
+    return MOCK_ORGANIZATIONS.filter(
+      (org) => org.parentOrg?.id === organizationId
+    );
+  }
+
+  // Helper method to check if an organization is a parent organization
+  private isParentOrganization(organizationId: number): boolean {
+    return this.getChildOrganizations(organizationId).length > 0;
+  }
+
+  // Helper method to check if current user can access child organization tasks
+  private canAccessChildOrganizationTasks(): boolean {
+    // Only Owner role users can access child organization tasks
+    if (this.currentUserRole !== 'Owner') {
+      return false;
     }
 
-    // Admin and Viewer users can only access their currently assigned organization
-    // (the one that was active when they switched to their role)
-    return this.currentOrganizationId === organizationId;
+    // And only if they are at a parent organization
+    return this.isParentOrganization(this.currentOrganizationId);
+  }
+
+  // Check if current user can access a specific organization
+  canAccessOrganization(organizationId: number): boolean {
+    // For demo purposes, allow access to any organization regardless of role
+    // In a real application, this would have proper access control
+    return true;
   }
 
   // Get organizations that current user can access
   getAccessibleOrganizations(): Organization[] {
-    if (this.currentUserRole === 'Owner') {
-      return [...MOCK_ORGANIZATIONS]; // Owners see all organizations
-    }
-
-    // Admin and Viewer users only see their currently assigned organization
-    return MOCK_ORGANIZATIONS.filter(
-      (org) => org.id === this.currentOrganizationId
-    );
+    // For demo purposes, always return all organizations to allow free switching
+    // In a real application, this would be filtered based on user permissions
+    return [...MOCK_ORGANIZATIONS];
   }
 
   // Organization endpoints
@@ -588,31 +614,173 @@ export class ApiService {
   getTasks(): Observable<Task[]> {
     console.log(
       '[API SERVICE] getTasks() called for organization:',
-      this.currentOrganizationId
+      this.currentOrganizationId,
+      'with role:',
+      this.currentUserRole
     );
-
-    // Check access before returning tasks
-    if (!this.canAccessOrganization(this.currentOrganizationId)) {
-      console.error('[API SERVICE] Access denied to organization tasks');
-      throw new Error(
-        `Access denied: Cannot view tasks from organization ${this.currentOrganizationId}`
-      );
-    }
 
     if (this.mockMode) {
       console.log('[API SERVICE] Using mock data');
-      return of(ORGANIZATION_TASKS[this.currentOrganizationId] || []).pipe(
-        tap(() =>
-          console.log(
-            '[API SERVICE] Returning mock tasks for org:',
-            this.currentOrganizationId
-          )
-        ),
-        delay(500)
-      );
+
+      let tasksToReturn: Task[] = [];
+
+      // Check if current user can access child organization tasks
+      if (this.canAccessChildOrganizationTasks()) {
+        // Owner at parent org can see tasks from their org + all child organizations
+        console.log(
+          '[API SERVICE] Owner at parent org - loading tasks from current org and child orgs'
+        );
+
+        // Get current organization tasks
+        const currentOrgTasks =
+          ORGANIZATION_TASKS[this.currentOrganizationId] || [];
+        const currentOrg = MOCK_ORGANIZATIONS.find(
+          (o) => o.id === this.currentOrganizationId
+        );
+
+        // Add current org tasks
+        tasksToReturn = currentOrgTasks.map((task) => ({
+          ...task,
+          organization: currentOrg
+            ? { id: currentOrg.id, name: currentOrg.name }
+            : undefined,
+        }));
+
+        // Add child organization tasks
+        const childOrgs = this.getChildOrganizations(
+          this.currentOrganizationId
+        );
+        for (const childOrg of childOrgs) {
+          const childOrgTasks = ORGANIZATION_TASKS[childOrg.id] || [];
+          const childTasksWithOrg = childOrgTasks.map((task) => ({
+            ...task,
+            organization: { id: childOrg.id, name: childOrg.name },
+          }));
+          tasksToReturn = [...tasksToReturn, ...childTasksWithOrg];
+        }
+      } else {
+        // All other users (Admin/Viewer at any org, or Owner at child org) only see tasks from their current organization
+        console.log(
+          '[API SERVICE] Non-owner user or owner at child org - loading single org tasks'
+        );
+
+        const orgTasks = ORGANIZATION_TASKS[this.currentOrganizationId] || [];
+        const org = MOCK_ORGANIZATIONS.find(
+          (o) => o.id === this.currentOrganizationId
+        );
+        tasksToReturn = orgTasks.map((task) => ({
+          ...task,
+          organization: org ? { id: org.id, name: org.name } : undefined,
+        }));
+      }
+
+      console.log('[API SERVICE] Returning tasks:', tasksToReturn);
+      return of(tasksToReturn).pipe(delay(500));
     }
 
-    const url = `${this.apiUrl}/tasks?organizationId=${this.currentOrganizationId}`;
+    // Build query parameters for real backend
+    const params = new URLSearchParams({
+      organizationId: this.currentOrganizationId.toString(),
+      userRole: this.currentUserRole,
+    });
+
+    const url = `${this.apiUrl}/tasks?${params.toString()}`;
+    console.log('[API SERVICE] Making HTTP GET request to:', url);
+    return this.http.get<Task[]>(url).pipe(
+      tap({
+        next: (tasks) =>
+          console.log('[API SERVICE] HTTP request successful:', tasks),
+        error: (error) =>
+          console.error('[API SERVICE] HTTP request failed:', error),
+      })
+    );
+  }
+
+  // Get tasks with optional organization filter (for cross-org users)
+  getTasksWithFilter(targetOrganizationId?: number): Observable<Task[]> {
+    console.log(
+      '[API SERVICE] getTasksWithFilter() called with target org:',
+      targetOrganizationId
+    );
+
+    if (this.mockMode) {
+      // Use the same mock logic as getTasks() but with filtering
+      let tasksToReturn: Task[] = [];
+
+      // Check if current user can access child organization tasks
+      if (this.canAccessChildOrganizationTasks()) {
+        // Owner at parent org can see tasks from their org + child organizations
+        if (targetOrganizationId) {
+          // Filter to specific organization (must be current org or a child org)
+          const childOrgs = this.getChildOrganizations(
+            this.currentOrganizationId
+          );
+          const isAccessibleOrg =
+            targetOrganizationId === this.currentOrganizationId ||
+            childOrgs.some((org) => org.id === targetOrganizationId);
+
+          if (isAccessibleOrg) {
+            const orgTasks = ORGANIZATION_TASKS[targetOrganizationId] || [];
+            const org = MOCK_ORGANIZATIONS.find(
+              (o) => o.id === targetOrganizationId
+            );
+            tasksToReturn = orgTasks.map((task) => ({
+              ...task,
+              organization: org ? { id: org.id, name: org.name } : undefined,
+            }));
+          } else {
+            // Access denied to this organization
+            tasksToReturn = [];
+          }
+        } else {
+          // Show all tasks from current org + child organizations
+          // Get current organization tasks
+          const currentOrgTasks =
+            ORGANIZATION_TASKS[this.currentOrganizationId] || [];
+          const currentOrg = MOCK_ORGANIZATIONS.find(
+            (o) => o.id === this.currentOrganizationId
+          );
+
+          tasksToReturn = currentOrgTasks.map((task) => ({
+            ...task,
+            organization: currentOrg
+              ? { id: currentOrg.id, name: currentOrg.name }
+              : undefined,
+          }));
+
+          // Add child organization tasks
+          const childOrgs = this.getChildOrganizations(
+            this.currentOrganizationId
+          );
+          for (const childOrg of childOrgs) {
+            const childOrgTasks = ORGANIZATION_TASKS[childOrg.id] || [];
+            const childTasksWithOrg = childOrgTasks.map((task) => ({
+              ...task,
+              organization: { id: childOrg.id, name: childOrg.name },
+            }));
+            tasksToReturn = [...tasksToReturn, ...childTasksWithOrg];
+          }
+        }
+      } else {
+        // Fall back to regular single-org access
+        return this.getTasks();
+      }
+
+      console.log('[API SERVICE] Returning filtered tasks:', tasksToReturn);
+      return of(tasksToReturn).pipe(delay(500));
+    }
+
+    // Build query parameters for real backend
+    const params = new URLSearchParams({
+      organizationId: this.currentOrganizationId.toString(),
+      userRole: this.currentUserRole,
+    });
+
+    if (targetOrganizationId) {
+      params.set('targetOrgId', targetOrganizationId.toString());
+    }
+
+    const url = `${this.apiUrl}/tasks?${params.toString()}`;
     console.log('[API SERVICE] Making HTTP GET request to:', url);
     return this.http.get<Task[]>(url).pipe(
       tap({
@@ -728,13 +896,23 @@ export class ApiService {
   }
 
   createTask(task: Partial<Task>): Observable<Task> {
+    // Determine which organization to use - task's organizationId takes precedence for cross-org operations
+    const targetOrgId = (task as any).organizationId
+      ? parseInt((task as any).organizationId.toString())
+      : this.currentOrganizationId;
+
     console.log(
       '[API SERVICE] createTask() called for organization:',
       this.currentOrganizationId,
+      'target organization:',
+      targetOrgId,
       'with:',
       task
     );
     if (this.mockMode) {
+      const org = MOCK_ORGANIZATIONS.find(
+        (o) => o.id === this.currentOrganizationId
+      );
       const newTask: Task = {
         id: getNextTaskId(this.currentOrganizationId),
         title: task.title!,
@@ -743,11 +921,12 @@ export class ApiService {
         category: task.category || 'Work',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        organization: org ? { id: org.id, name: org.name } : undefined,
       };
 
       // Add new task to the beginning of the list so it appears at the top
       ORGANIZATION_TASKS[this.currentOrganizationId] = [
-        newTask,
+        { ...newTask, organization: undefined }, // Store without organization in ORGANIZATION_TASKS
         ...(ORGANIZATION_TASKS[this.currentOrganizationId] || []),
       ];
 
@@ -759,19 +938,30 @@ export class ApiService {
     }
 
     return this.http.post<Task>(
-      `${this.apiUrl}/tasks?organizationId=${this.currentOrganizationId}`,
+      `${this.apiUrl}/tasks?organizationId=${targetOrgId}&userRole=${this.currentUserRole}`,
       task
     );
   }
 
   updateTask(id: number, task: Partial<Task>): Observable<Task> {
+    // Determine which organization to use - task's organizationId takes precedence for cross-org operations
+    const targetOrgId = (task as any).organizationId
+      ? parseInt((task as any).organizationId.toString())
+      : this.currentOrganizationId;
+
     console.log(
       '[API SERVICE] updateTask() called for:',
       id,
       'in organization:',
-      this.currentOrganizationId
+      this.currentOrganizationId,
+      'target organization:',
+      targetOrgId
     );
     console.log('[API SERVICE] Update data:', task);
+    console.log(
+      '[API SERVICE] Update data JSON:',
+      JSON.stringify(task, null, 2)
+    );
     if (this.mockMode) {
       console.log(
         '[API SERVICE] Current organization tasks:',
@@ -831,7 +1021,7 @@ export class ApiService {
     }
 
     return this.http.put<Task>(
-      `${this.apiUrl}/tasks/${id}?organizationId=${this.currentOrganizationId}`,
+      `${this.apiUrl}/tasks/${id}?organizationId=${targetOrgId}&userRole=${this.currentUserRole}`,
       task
     );
   }
@@ -896,7 +1086,7 @@ export class ApiService {
       throw new Error('Task not found');
     }
     return this.http.delete<void>(
-      `${this.apiUrl}/tasks/${id}?organizationId=${this.currentOrganizationId}`
+      `${this.apiUrl}/tasks/${id}?organizationId=${this.currentOrganizationId}&userRole=${this.currentUserRole}`
     );
   }
 

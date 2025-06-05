@@ -15,7 +15,7 @@ import {
   Validators,
   ReactiveFormsModule,
 } from '@angular/forms';
-import { Task, TaskCategory } from '../../core/api.service';
+import { Task, TaskCategory, Organization } from '../../core/api.service';
 import { formatTaskStatus } from '../utils/status-formatter.util';
 
 @Component({
@@ -139,6 +139,22 @@ import { formatTaskStatus } from '../utils/status-formatter.util';
                 </select>
               </div>
             </div>
+
+            <!-- Organization Selection (only for cross-org users) -->
+            <div *ngIf="showCrossOrgFeatures">
+              <label class="form-label text-sm" for="organization"
+                >Organization</label
+              >
+              <select
+                id="organization"
+                formControlName="organizationId"
+                class="form-input w-full text-sm sm:text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              >
+                <option *ngFor="let org of organizations" [value]="org.id">
+                  {{ org.name }}
+                </option>
+              </select>
+            </div>
           </form>
         </div>
 
@@ -203,11 +219,15 @@ import { formatTaskStatus } from '../utils/status-formatter.util';
 })
 export class TaskCreationDialogComponent implements OnInit, OnChanges {
   @Input() isOpen = false;
+  @Input() showCrossOrgFeatures = false;
+  @Input() organizations: Organization[] = [];
+  @Input() currentOrganizationId = 1;
   @Output() confirm = new EventEmitter<{
     title: string;
     description: string;
     category: TaskCategory;
     status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+    organizationId?: number;
   }>();
   @Output() cancel = new EventEmitter<void>();
 
@@ -219,6 +239,7 @@ export class TaskCreationDialogComponent implements OnInit, OnChanges {
       description: [''],
       status: ['TODO'],
       category: ['Work'],
+      organizationId: [1], // Default to organization 1
     });
   }
 
@@ -256,6 +277,7 @@ export class TaskCreationDialogComponent implements OnInit, OnChanges {
       description: '',
       status: 'TODO',
       category: 'Work',
+      organizationId: this.currentOrganizationId,
     });
   }
 

@@ -6,7 +6,7 @@ import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { Observable, combineLatest, Subscription } from 'rxjs';
 import { map, startWith, take, tap } from 'rxjs/operators';
-import { Task, TaskCategory } from '../../core/api.service';
+import { Task, TaskCategory, Organization } from '../../core/api.service';
 import { KeyboardShortcutsService } from '../../core/keyboard-shortcuts.service';
 import * as TaskActions from '../../state/actions/task.actions';
 import {
@@ -14,7 +14,12 @@ import {
   selectLoading,
   selectIsOwnerOrAdmin,
   selectError,
+  selectUserRole,
 } from '../../state/selectors';
+import {
+  selectOrganizations,
+  selectCurrentOrganization,
+} from '../../state/selectors/organization.selectors';
 import { moveItemInArray } from '@angular/cdk/drag-drop';
 import { DeleteConfirmationDialogComponent } from '../../shared/components/delete-confirmation-dialog.component';
 import { QuickDeleteWarningDialogComponent } from '../../shared/components/quick-delete-warning-dialog.component';
@@ -53,6 +58,21 @@ import { formatTaskStatus } from '../../shared/utils/status-formatter.util';
                 class="form-input flex-1 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600"
               />
               <div class="flex gap-2">
+                <!-- Organization Filter (only for cross-org users) -->
+                <select
+                  *ngIf="showCrossOrgFeatures$ | async"
+                  #organizationSelect
+                  [formControl]="organizationFilter"
+                  class="form-input flex-1 sm:w-52 text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600 pr-8"
+                >
+                  <option value="">All Organizations</option>
+                  <option
+                    *ngFor="let org of organizations$ | async"
+                    [value]="org.id"
+                  >
+                    {{ org.name }}
+                  </option>
+                </select>
                 <select
                   #categorySelect
                   [formControl]="categoryFilter"
@@ -192,16 +212,26 @@ import { formatTaskStatus } from '../../shared/utils/status-formatter.util';
                 >
                   {{ task.title }}
                 </h3>
-                <span
-                  class="px-2 py-1 text-xs rounded-full self-start"
-                  [class.bg-purple-100]="task.category === 'Work'"
-                  [class.bg-orange-100]="task.category === 'Personal'"
-                  [class.bg-blue-100]="task.category === 'Shopping'"
-                  [class.bg-green-100]="task.category === 'Health'"
-                  [class.bg-gray-100]="task.category === 'Other'"
-                >
-                  {{ task.category }}
-                </span>
+                <div class="flex gap-2 flex-wrap">
+                  <!-- Organization badge (only for cross-org users) -->
+                  <span
+                    *ngIf="(showCrossOrgFeatures$ | async) && task.organization"
+                    class="px-2 py-1 text-xs rounded-full font-medium"
+                    [class]="getOrganizationBadgeColor(task.organization.id)"
+                  >
+                    {{ task.organization.name }}
+                  </span>
+                  <span
+                    class="px-2 py-1 text-xs rounded-full self-start"
+                    [class.bg-purple-100]="task.category === 'Work'"
+                    [class.bg-orange-100]="task.category === 'Personal'"
+                    [class.bg-blue-100]="task.category === 'Shopping'"
+                    [class.bg-green-100]="task.category === 'Health'"
+                    [class.bg-gray-100]="task.category === 'Other'"
+                  >
+                    {{ task.category }}
+                  </span>
+                </div>
               </div>
               <p
                 class="text-gray-600 dark:text-gray-300 text-sm sm:text-base mb-2 break-words"
@@ -277,6 +307,9 @@ import { formatTaskStatus } from '../../shared/utils/status-formatter.util';
       <!-- Task Creation Dialog -->
       <app-task-creation-dialog
         [isOpen]="showCreateTaskDialog"
+        [showCrossOrgFeatures]="(showCrossOrgFeatures$ | async) ?? false"
+        [organizations]="(organizations$ | async) ?? []"
+        [currentOrganizationId]="(currentOrganization$ | async)?.id || 1"
         (confirm)="onConfirmCreateTask($event)"
         (cancel)="onCancelCreateTask()"
       ></app-task-creation-dialog>
@@ -285,6 +318,8 @@ import { formatTaskStatus } from '../../shared/utils/status-formatter.util';
       <app-task-edit-dialog
         [isOpen]="showEditTaskDialog"
         [task]="taskToEdit"
+        [showCrossOrgFeatures]="(showCrossOrgFeatures$ | async) ?? false"
+        [organizations]="(organizations$ | async) ?? []"
         (confirm)="onConfirmEditTask($event)"
         (cancel)="onCancelEditTask()"
       ></app-task-edit-dialog>
@@ -328,6 +363,13 @@ export class TaskListComponent implements OnInit, OnDestroy {
   completionPercentage$: Observable<number>;
   completedTasks$: Observable<number>;
   totalTasks$: Observable<number>;
+
+  // Cross-organization support
+  userRole$: Observable<string>;
+  currentOrganization$: Observable<Organization | null>;
+  organizations$: Observable<Organization[]>;
+  showCrossOrgFeatures$: Observable<boolean>;
+
   private subscriptions: Subscription = new Subscription();
 
   // Delete dialog state
@@ -352,6 +394,7 @@ export class TaskListComponent implements OnInit, OnDestroy {
   searchControl = new FormControl('');
   categoryFilter = new FormControl<TaskCategory | ''>('');
   statusFilter = new FormControl<'TODO' | 'IN_PROGRESS' | 'DONE' | ''>('');
+  organizationFilter = new FormControl<number | ''>(''); // Organization filter for cross-org users
 
   constructor(
     private store: Store,
@@ -380,37 +423,97 @@ export class TaskListComponent implements OnInit, OnDestroy {
     );
     this.isOwnerOrAdmin$ = this.store.select(selectIsOwnerOrAdmin);
 
-    // Set up filtered tasks
+    // Cross-organization observables
+    this.userRole$ = this.store.select(selectUserRole);
+    this.currentOrganization$ = this.store.select(selectCurrentOrganization);
+    this.organizations$ = this.store.select(selectOrganizations);
+
+    // Determine if user should see cross-organization features
+    // Only "Owner" at parent organization (id 1 = "No Substitutions") gets cross-org access
+    this.showCrossOrgFeatures$ = combineLatest([
+      this.userRole$,
+      this.currentOrganization$,
+    ]).pipe(
+      map(([role, currentOrg]) => {
+        return (
+          role === 'Owner' && currentOrg?.id === 1 && !currentOrg.parentOrg
+        );
+      })
+    );
+
+    // Set up filtered tasks with organization filtering for cross-org users
     this.filteredTasks$ = combineLatest([
       this.tasks$,
       this.searchControl.valueChanges.pipe(startWith('')),
       this.categoryFilter.valueChanges.pipe(startWith('')),
       this.statusFilter.valueChanges.pipe(startWith('')),
+      this.organizationFilter.valueChanges.pipe(startWith('')),
+      this.showCrossOrgFeatures$,
     ]).pipe(
-      map(([tasks, search, category, status]) => {
-        console.log('Filtering tasks:', { tasks, search, category, status });
-        return tasks.filter((task) => {
-          const matchesSearch =
-            !search ||
-            task.title.toLowerCase().includes(search.toLowerCase()) ||
-            (task.description?.toLowerCase() || '').includes(
-              search.toLowerCase()
+      map(
+        ([
+          tasks,
+          search,
+          category,
+          status,
+          organizationId,
+          showCrossOrgFeatures,
+        ]) => {
+          console.log('Filtering tasks:', {
+            tasks,
+            search,
+            category,
+            status,
+            organizationId,
+            organizationIdType: typeof organizationId,
+            showCrossOrgFeatures,
+          });
+          return tasks.filter((task) => {
+            const matchesSearch =
+              !search ||
+              task.title.toLowerCase().includes(search.toLowerCase()) ||
+              (task.description?.toLowerCase() || '').includes(
+                search.toLowerCase()
+              );
+            const matchesCategory = !category || task.category === category;
+            const matchesStatus = !status || task.status === status;
+
+            // Only apply organization filtering for cross-org users
+            // Convert organizationId to number for proper comparison
+            const organizationIdNum = organizationId ? +organizationId : null;
+            const matchesOrganization =
+              !showCrossOrgFeatures ||
+              !organizationIdNum ||
+              task.organization?.id === organizationIdNum;
+
+            console.log('Task filter check:', {
+              taskId: task.id,
+              taskTitle: task.title,
+              taskOrgId: task.organization?.id,
+              filterOrgId: organizationIdNum,
+              matchesOrganization,
+              showCrossOrgFeatures,
+            });
+
+            return (
+              matchesSearch &&
+              matchesCategory &&
+              matchesStatus &&
+              matchesOrganization
             );
-          const matchesCategory = !category || task.category === category;
-          const matchesStatus = !status || task.status === status;
-          return matchesSearch && matchesCategory && matchesStatus;
-        });
-      }),
+          });
+        }
+      ),
       tap((filteredTasks) => console.log('Filtered tasks:', filteredTasks))
     );
 
     // Set up task completion metrics
-    this.totalTasks$ = this.tasks$.pipe(
+    this.totalTasks$ = this.filteredTasks$.pipe(
       map((tasks) => tasks.length),
       tap((total) => console.log('Total tasks:', total))
     );
 
-    this.completedTasks$ = this.tasks$.pipe(
+    this.completedTasks$ = this.filteredTasks$.pipe(
       map((tasks) => tasks.filter((t) => t.status === 'DONE').length),
       tap((completed) => console.log('Completed tasks:', completed))
     );
@@ -443,6 +546,10 @@ export class TaskListComponent implements OnInit, OnDestroy {
         // Reset selection if it's out of bounds
         if (this.selectedTaskIndex >= tasks.length) {
           this.selectedTaskIndex = -1;
+        }
+        // Auto-select first task if none is selected and tasks are available
+        if (this.selectedTaskIndex === -1 && tasks.length > 0) {
+          this.selectedTaskIndex = 0;
         }
       })
     );
@@ -561,6 +668,7 @@ export class TaskListComponent implements OnInit, OnDestroy {
     description: string;
     category: TaskCategory;
     status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+    organizationId?: number;
   }): void {
     console.log('Creating new task:', taskData);
     this.store.dispatch(TaskActions.createTask({ task: taskData }));
@@ -579,6 +687,7 @@ export class TaskListComponent implements OnInit, OnDestroy {
       description: string;
       category: TaskCategory;
       status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+      organizationId?: number;
     };
   }): void {
     console.log('Updating task:', editData);
@@ -742,5 +851,22 @@ export class TaskListComponent implements OnInit, OnDestroy {
   // Utility method to format status for display
   formatTaskStatus(status: 'TODO' | 'IN_PROGRESS' | 'DONE'): string {
     return formatTaskStatus(status);
+  }
+
+  // Get organization badge color based on organization ID
+  getOrganizationBadgeColor(organizationId: number): string {
+    const colors = [
+      'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200',
+      'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200',
+      'bg-pink-100 dark:bg-pink-900 text-pink-800 dark:text-pink-200',
+      'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200',
+      'bg-cyan-100 dark:bg-cyan-900 text-cyan-800 dark:text-cyan-200',
+      'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200',
+      'bg-rose-100 dark:bg-rose-900 text-rose-800 dark:text-rose-200',
+      'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200',
+    ];
+
+    // Use modulo to cycle through colors based on organization ID
+    return colors[(organizationId - 1) % colors.length];
   }
 }

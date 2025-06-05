@@ -9,6 +9,7 @@ export interface CreateTaskDto {
   description: string;
   status?: 'TODO' | 'IN_PROGRESS' | 'DONE';
   category: 'Work' | 'Personal' | 'Shopping' | 'Health' | 'Other';
+  organizationId?: number;
 }
 
 @Injectable()
@@ -56,7 +57,7 @@ export class TasksService {
     this.logger.log(`Finding all tasks for organization ${organizationId}`);
     const tasks = await this.tasksRepository.find({
       where: { organization: { id: organizationId } },
-      relations: ['owner', 'organization'],
+      relations: ['organization'],
       order: { createdAt: 'DESC' },
     });
 
@@ -65,10 +66,12 @@ export class TasksService {
 
   async findAllForOwner(
     ownerOrgId: number,
-    targetOrgId: number
+    targetOrgId?: number
   ): Promise<any[]> {
     this.logger.log(
-      `Finding all tasks for Owner from org ${ownerOrgId} targeting org ${targetOrgId}`
+      `Finding all tasks for Owner from org ${ownerOrgId}${
+        targetOrgId ? ` targeting org ${targetOrgId}` : ' (all accessible orgs)'
+      }`
     );
 
     // Get all organizations accessible to this owner (their org + all children)
@@ -76,16 +79,23 @@ export class TasksService {
 
     // If targetOrgId is specified and is accessible, filter to that org only
     let orgIdsToQuery = accessibleOrgIds;
-    if (targetOrgId && accessibleOrgIds.includes(targetOrgId)) {
-      orgIdsToQuery = [targetOrgId];
-    } else if (targetOrgId && !accessibleOrgIds.includes(targetOrgId)) {
-      // Target org is not accessible to this owner
-      return [];
+    if (targetOrgId && targetOrgId > 0) {
+      if (accessibleOrgIds.includes(targetOrgId)) {
+        orgIdsToQuery = [targetOrgId];
+      } else {
+        // Target org is not accessible to this owner
+        return [];
+      }
     }
+    // If targetOrgId is 0 or not provided, show all accessible organizations
+
+    this.logger.log(
+      `Querying tasks from organizations: ${orgIdsToQuery.join(', ')}`
+    );
 
     const tasks = await this.tasksRepository.find({
       where: { organization: { id: In(orgIdsToQuery) } },
-      relations: ['owner', 'organization'],
+      relations: ['organization'],
       order: { createdAt: 'DESC' },
     });
 
@@ -95,24 +105,51 @@ export class TasksService {
   private async getAccessibleOrganizations(
     parentOrgId: number
   ): Promise<number[]> {
+    console.log(
+      '[TasksService] getAccessibleOrganizations called with parentOrgId:',
+      parentOrgId
+    );
+
     const accessibleIds = [parentOrgId]; // Always include the owner's own org
+    console.log('[TasksService] Starting with accessible IDs:', accessibleIds);
+
     const childOrgs = await this.findAllChildOrganizations(parentOrgId);
+    console.log(
+      '[TasksService] Found child organizations:',
+      childOrgs.map((org) => ({ id: org.id, name: org.name }))
+    );
+
     accessibleIds.push(...childOrgs.map((org) => org.id));
+    console.log('[TasksService] Final accessible IDs:', accessibleIds);
+
     return accessibleIds;
   }
 
   private async findAllChildOrganizations(
     parentOrgId: number
   ): Promise<Organization[]> {
+    console.log(
+      '[TasksService] findAllChildOrganizations called with parentOrgId:',
+      parentOrgId
+    );
+
     const allChildren: Organization[] = [];
     const queue = [parentOrgId];
 
     while (queue.length > 0) {
       const currentParentId = queue.shift()!;
+      console.log('[TasksService] Processing parentId:', currentParentId);
 
       const children = await this.organizationsRepository.find({
         where: { parentOrg: { id: currentParentId } },
       });
+
+      console.log(
+        '[TasksService] Found children for parent',
+        currentParentId,
+        ':',
+        children.map((org) => ({ id: org.id, name: org.name }))
+      );
 
       for (const child of children) {
         allChildren.push(child);
@@ -120,6 +157,10 @@ export class TasksService {
       }
     }
 
+    console.log(
+      '[TasksService] All children found:',
+      allChildren.map((org) => ({ id: org.id, name: org.name }))
+    );
     return allChildren;
   }
 
@@ -130,7 +171,7 @@ export class TasksService {
         id,
         organization: { id: organizationId },
       },
-      relations: ['owner', 'organization'],
+      relations: ['organization'],
     });
 
     if (!task) {
@@ -144,9 +185,33 @@ export class TasksService {
     this.logger.log(
       'Creating new task:',
       createTaskDto,
-      'for organization:',
+      'for context organization:',
       context.organization.id
     );
+
+    // Determine target organization - use organizationId from DTO if provided and user has cross-org access
+    let targetOrgId = context.organization.id;
+    if (
+      createTaskDto.organizationId &&
+      context.user.role === 'Owner' &&
+      context.organization.id === 1
+    ) {
+      // Ensure organizationId is a number for comparison
+      const targetOrgIdNum =
+        typeof createTaskDto.organizationId === 'string'
+          ? parseInt(createTaskDto.organizationId, 10)
+          : createTaskDto.organizationId;
+
+      // Verify the target organization is accessible
+      const accessibleOrgIds = await this.getAccessibleOrganizations(
+        context.organization.id
+      );
+      if (accessibleOrgIds.includes(targetOrgIdNum)) {
+        targetOrgId = targetOrgIdNum;
+      } else {
+        throw new Error(`Organization ${targetOrgIdNum} is not accessible`);
+      }
+    }
 
     const task = this.tasksRepository.create({
       title: createTaskDto.title,
@@ -155,8 +220,8 @@ export class TasksService {
         ? this.apiStatusToDb(createTaskDto.status)
         : ('todo' as TaskStatus),
       category: createTaskDto.category as TaskCategory,
-      organization: { id: context.organization.id },
-      owner: context.user, // Now we have proper user context
+      organization: { id: targetOrgId },
+      // owner: context.user, // Temporarily removed until we have proper user management
     });
 
     const savedTask = await this.tasksRepository.save(task);
@@ -167,7 +232,7 @@ export class TasksService {
       'CREATE',
       savedTask.id,
       `Created task: ${savedTask.title}`,
-      context.organization.id
+      targetOrgId
     );
 
     return this.transformTaskForApi(savedTask);
@@ -181,17 +246,28 @@ export class TasksService {
     this.logger.log(
       `Updating task ${id}:`,
       updateTaskDto,
-      'for organization:',
+      'for context organization:',
       context.organization.id
     );
 
-    const task = await this.tasksRepository.findOne({
-      where: {
-        id,
-        organization: { id: context.organization.id },
-      },
-      relations: ['owner', 'organization'],
-    });
+    // For cross-org users, we need to find the task in any accessible organization
+    let task;
+    if (context.user.role === 'Owner' && context.organization.id === 1) {
+      // Owner at parent org can update tasks from any organization
+      task = await this.tasksRepository.findOne({
+        where: { id },
+        relations: ['organization'],
+      });
+    } else {
+      // Regular users can only update tasks in their current organization
+      task = await this.tasksRepository.findOne({
+        where: {
+          id,
+          organization: { id: context.organization.id },
+        },
+        relations: ['organization'],
+      });
+    }
 
     if (!task) {
       throw new NotFoundException('Task not found');
@@ -202,6 +278,7 @@ export class TasksService {
       description: task.description,
       status: this.dbStatusToApi(task.status),
       category: task.category,
+      organizationId: task.organization.id,
     };
 
     // Update only allowed fields
@@ -211,6 +288,31 @@ export class TasksService {
       task.status = this.apiStatusToDb(updateTaskDto.status);
     if (updateTaskDto.category)
       task.category = updateTaskDto.category as TaskCategory;
+
+    // Handle organization change for cross-org users
+    if (
+      updateTaskDto.organizationId &&
+      context.user.role === 'Owner' &&
+      context.organization.id === 1
+    ) {
+      // Ensure organizationId is a number for comparison
+      const targetOrgIdNum =
+        typeof updateTaskDto.organizationId === 'string'
+          ? parseInt(updateTaskDto.organizationId, 10)
+          : updateTaskDto.organizationId;
+
+      // Verify the target organization is accessible
+      const accessibleOrgIds = await this.getAccessibleOrganizations(
+        context.organization.id
+      );
+      if (accessibleOrgIds.includes(targetOrgIdNum)) {
+        task.organization = {
+          id: targetOrgIdNum,
+        } as Organization;
+      } else {
+        throw new Error(`Organization ${targetOrgIdNum} is not accessible`);
+      }
+    }
 
     const savedTask = await this.tasksRepository.save(task);
 
@@ -238,6 +340,27 @@ export class TasksService {
         `category: "${oldValues.category}" → "${updateTaskDto.category}"`
       );
     }
+    if (updateTaskDto.organizationId) {
+      // Ensure organizationId is a number for comparison
+      const newOrgIdNum =
+        typeof updateTaskDto.organizationId === 'string'
+          ? parseInt(updateTaskDto.organizationId, 10)
+          : updateTaskDto.organizationId;
+
+      if (oldValues.organizationId !== newOrgIdNum) {
+        const oldOrgName = await this.organizationsRepository.findOne({
+          where: { id: oldValues.organizationId },
+        });
+        const newOrgName = await this.organizationsRepository.findOne({
+          where: { id: newOrgIdNum },
+        });
+        changes.push(
+          `organization: "${oldOrgName?.name || 'Unknown'}" → "${
+            newOrgName?.name || 'Unknown'
+          }"`
+        );
+      }
+    }
 
     await this.auditLogService.log(
       context.user.id,
@@ -256,12 +379,24 @@ export class TasksService {
       context.organization.id
     );
 
-    const task = await this.tasksRepository.findOne({
-      where: {
-        id,
-        organization: { id: context.organization.id },
-      },
-    });
+    // For cross-org users, we need to find the task in any accessible organization
+    let task;
+    if (context.user.role === 'Owner' && context.organization.id === 1) {
+      // Owner at parent org can delete tasks from any organization
+      task = await this.tasksRepository.findOne({
+        where: { id },
+        relations: ['organization'],
+      });
+    } else {
+      // Regular users can only delete tasks in their current organization
+      task = await this.tasksRepository.findOne({
+        where: {
+          id,
+          organization: { id: context.organization.id },
+        },
+        relations: ['organization'],
+      });
+    }
 
     if (!task) {
       throw new NotFoundException('Task not found');
@@ -273,7 +408,7 @@ export class TasksService {
       'DELETE',
       task.id,
       `Deleted task: ${task.title}`,
-      context.organization.id
+      task.organization.id // Log to the task's actual organization
     );
 
     await this.tasksRepository.remove(task);

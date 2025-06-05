@@ -119,12 +119,12 @@ import {
                     to quickly open this guide
                   </li>
                   <li>
-                    • Navigation shortcuts help you move through tasks without
-                    using the mouse
+                    • Use arrow keys (↑↓) to navigate between tasks, then press
+                    Del to delete
                   </li>
                   <li>
-                    • Quick delete mode must be enabled for delete shortcuts to
-                    work
+                    • Quick delete mode determines if deletion is immediate or
+                    requires confirmation
                   </li>
                 </ul>
               </div>

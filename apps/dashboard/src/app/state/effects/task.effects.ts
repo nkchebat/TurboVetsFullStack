@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 import { map, switchMap, catchError, tap, mergeMap } from 'rxjs/operators';
 import { ApiService } from '../../core/api.service';
 import * as TaskActions from '../actions/task.actions';
+import * as AuthActions from '../actions/auth.actions';
 
 @Injectable()
 export class TaskEffects {
@@ -12,40 +13,70 @@ export class TaskEffects {
   private apiService = inject(ApiService);
 
   // ✅ Now this.actions$ and this.apiService are available
-  loadTasks$ = createEffect(() => {
-    console.log('[EFFECT] Creating loadTasks$ effect');
-    return this.actions$.pipe(
-      tap((action) => console.log('[EFFECT] Received action:', action)),
+  loadTasks$ = createEffect(() =>
+    this.actions$.pipe(
       ofType(TaskActions.loadTasks),
-      tap(() => console.log('[EFFECT] loadTasks action matched')),
-      switchMap(() => {
+      tap(() => {
+        console.log('[EFFECT] loadTasks action received - Starting API call');
         console.log(
-          '[EFFECT] Starting API call for organization:',
+          '[EFFECT] Current organization:',
           this.apiService.getCurrentOrganization()
         );
-        return this.apiService.getTasks().pipe(
-          tap((tasks) => console.log('[EFFECT] API returned tasks:', tasks)),
+        console.log(
+          '[EFFECT] Current user role:',
+          this.apiService.getCurrentUserRole()
+        );
+      }),
+      switchMap(() =>
+        this.apiService.getTasks().pipe(
+          tap((tasks) => {
+            console.log('[EFFECT] API getTasks completed successfully');
+            console.log('[EFFECT] Tasks received from API:', tasks);
+          }),
           map((tasks) => {
-            console.log('[EFFECT] Mapping to loadTasksSuccess action');
+            console.log('[EFFECT] Dispatching loadTasksSuccess action');
             return TaskActions.loadTasksSuccess({ tasks });
           }),
           catchError((error) => {
-            console.error('[EFFECT] Error in getTasks:', error);
+            console.error('[EFFECT] Error loading tasks:', error);
             return of(
               TaskActions.loadTasksFailure({
                 error: error.message || 'Unknown error',
               })
             );
           })
-        );
-      })
-    );
-  });
+        )
+      )
+    )
+  );
+
+  // Listen for role changes and reload tasks to update permissions
+  roleChange$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(AuthActions.setUserRole),
+      tap(({ role }) => {
+        console.log('[EFFECT] Role change detected - new role:', role);
+        console.log('[EFFECT] Reloading tasks to apply new permissions');
+      }),
+      map(() => TaskActions.loadTasks())
+    )
+  );
 
   createTask$ = createEffect(() =>
     this.actions$.pipe(
       ofType(TaskActions.createTask),
-      tap(({ task }) => console.log('[EFFECT] Creating task:', task)),
+      tap(({ task }) => {
+        console.log('[EFFECT] createTask action received');
+        console.log('[EFFECT] Task data to create:', task);
+        console.log(
+          '[EFFECT] Current organization:',
+          this.apiService.getCurrentOrganization()
+        );
+        console.log(
+          '[EFFECT] Current user role:',
+          this.apiService.getCurrentUserRole()
+        );
+      }),
       switchMap(({ task }) =>
         this.apiService.createTask(task).pipe(
           tap((newTask) =>
@@ -78,6 +109,10 @@ export class TaskEffects {
         console.log(
           '[EFFECT] Current organization:',
           this.apiService.getCurrentOrganization()
+        );
+        console.log(
+          '[EFFECT] Current user role:',
+          this.apiService.getCurrentUserRole()
         );
       }),
       switchMap(({ id, task }) =>
